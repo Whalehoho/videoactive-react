@@ -1,11 +1,12 @@
-// app/page.js
-import Navbar from "./components/LoginNavbar";
+"use client";
+import NavbarSwitcher from "./components/NavbarSwitcher";
 import Footer from "./components/Footer";
+import Link from "next/link";
 
 export default function Home() {
   return (
     <div>
-      <Navbar activePage="home" />
+      <NavbarSwitcher />
       <main className="text-center">
         {/* Hero Section with Text Overlay */}
         <section className="relative w-full h-[400px]">
@@ -21,9 +22,11 @@ export default function Home() {
             <h1 className="text-4xl font-bold text-white">
               Meet Friends With <span className="text-pink-500">ViMEET</span>
             </h1>
-            <button className="bg-pink-500 text-white px-4 py-2 rounded-lg mt-4">
-              Sign in / Register
-            </button>
+            <Link href="/auth">
+              <button className="bg-pink-500 text-white px-4 py-2 rounded-lg mt-4">
+                Sign in / Register
+              </button>
+            </Link>
           </div>
         </section>
 

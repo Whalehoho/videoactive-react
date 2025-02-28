@@ -1,6 +1,14 @@
+"use client";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
-export default function Navbar({ activePage }) { // Accept activePage as a prop
+export default function Navbar({ activePage, user }) { // Accept activePage as a prop
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+    router.push("/");
+  };
   return (
     <nav className="bg-white shadow-md p-4 flex justify-between items-center">
       {/* Logo */}
@@ -35,6 +43,10 @@ export default function Navbar({ activePage }) { // Accept activePage as a prop
             >
               Profile
             </Link>
+          </li>
+          <li>
+          <button className="px-4 py-2 bg-red-600 rounded-lg">Logout</button>
+
           </li>
         </ul>
         

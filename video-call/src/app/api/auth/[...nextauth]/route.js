@@ -1,23 +1,33 @@
-import NextAuth from "next-auth";
-import GoogleProvider from "next-auth/providers/google";
+import { NextResponse } from "next/server";
 
 export const authOptions = {
-  providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    }),
-  ],
-  callbacks: {
-    async signIn({ user }) {
-      if (!user.email.endsWith("@gmail.com")) {
-        return false; // Reject non-Gmail users
-      }
-      return true;
+  debug: false, // 🔥 Disable extra logging
+  events: {
+    async signIn() {
+      console.log("User signed in");
     },
-  },
+    async signOut() {
+      console.log("User signed out");
+    }
+  }
 };
 
-// ✅ Fix: Use named exports for HTTP methods
-export const GET = NextAuth(authOptions);
-export const POST = NextAuth(authOptions);
+export async function GET() {
+  try {
+    // Fetch user session from your .NET backend
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/check-session`, {
+      method: "GET",
+      credentials: "include", // Include cookies for authentication
+    });
+
+    if (!res.ok) {
+      return NextResponse.json({ user: null }, { status: 401 });
+    }
+
+    const user = await res.json();
+    return NextResponse.json({ user });
+  } catch (error) {
+    console.error("Error fetching session:", error);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
+}
