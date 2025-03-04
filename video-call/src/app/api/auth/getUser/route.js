@@ -11,7 +11,7 @@ export async function GET() {
     }
 
     // ✅ Call backend /validate-token since it also returns user info
-    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/validate-token`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/getUser`, {
       method: "GET",
       credentials: "include",
       headers: {

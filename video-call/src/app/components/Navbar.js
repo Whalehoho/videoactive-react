@@ -33,6 +33,14 @@ export default function Navbar({ activePage, user, onLogout }) {
           </li>
           <li>
             <Link 
+              href="/randomCall"
+              className={`px-4 py-3 rounded-lg ${activePage === "/randomCall" ? "bg-pink-600 text-white" : "text-gray-700 hover:bg-gray-200"}`}
+            >
+              Random Call
+            </Link>
+          </li>
+          <li>
+            <Link 
               href="/connections"
               className={`px-4 py-3 rounded-lg ${activePage === "/connections" ? "bg-pink-600 text-white" : "text-gray-700 hover:bg-gray-200"}`}
             >
