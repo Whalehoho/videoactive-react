@@ -1,15 +1,17 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { handleLogout} from "../services/api";
+import { handleLogout } from "../services/api";
 
-export default function Navbar({ activePage, user }) { // Accept activePage as a prop
+export default function Navbar({ activePage, user, onLogout }) { 
   const router = useRouter();
 
-  const handleLogout = async () => {
-    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
-    router.push("/");
+  const handleUserLogout = async () => {
+    await handleLogout();
+    onLogout(); // ✅ Trigger re-fetch in NavbarSwitcher
+    router.push("/"); // Redirect to home after logout
   };
+
   return (
     <nav className="bg-white shadow-md p-4 flex justify-between items-center">
       {/* Logo */}
@@ -46,26 +48,24 @@ export default function Navbar({ activePage, user }) { // Accept activePage as a
             </Link>
           </li>
           <li>
-          <button onClick={() => handleLogout()} className="px-1 py-1 bg-red-600 rounded-lg">
+            <button onClick={handleUserLogout} className="px-3 py-2 bg-red-600 text-white rounded-lg">
             <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth="1.5"
-              stroke="currentColor"
-              className="size-6"
-            >
-              <path
-                strokeLinecap="round" // Corrected property name
-                strokeLinejoin="round" // corrected property name
-                d="M8.25 9V5.25A2.25 2.25 0 0 1 10.5 3h6a2.25 2.25 0 0 1 2.25 2.25v13.5A2.25 2.25 0 0 1 16.5 21h-6a2.25 2.25 0 0 1-2.25-2.25V15m-3 0-3-3m0 0 3-3m-3 3H15"
-              />
-            </svg>
-          </button>
-
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth="1.5"
+                  stroke="currentColor"
+                  className="w-5 h-5"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M8.25 9V5.25A2.25 2.25 0 0 1 10.5 3h6a2.25 2.25 0 0 1 2.25 2.25v13.5A2.25 2.25 0 0 1 16.5 21h-6a2.25 2.25 0 0 1-2.25-2.25V15m-3 0-3-3m0 0 3-3m-3 3H15"
+                  />
+                </svg>
+            </button>
           </li>
         </ul>
-        
       </div>
     </nav>
   );

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import Navbar from "./Navbar";
 import LoginNavbar from "./LoginNavbar";
@@ -10,18 +10,24 @@ export default function NavbarSwitcher() {
   const [loading, setLoading] = useState(true);
   const pathname = usePathname(); // ✅ Get current path
 
-  useEffect(() => {
-    const checkUser = async () => {
-      const userData = await fetchUser(); // ✅ Call fetchUser() directly
-      setUser(userData);
-      setLoading(false);
-      console.log(userData);
-    };
-
-    checkUser();
+  // ✅ Function to refresh user state
+  const checkUser = useCallback(async () => {
+    setLoading(true);
+    const userData = await fetchUser();
+    setUser(userData);
+    setLoading(false);
   }, []);
+
+  // ✅ Run on mount and every time checkUser changes
+  useEffect(() => {
+    checkUser();
+  }, [checkUser]);
 
   if (loading) return null; // Prevent flickering while loading
 
-  return user ? <Navbar user={user} activePage={pathname} /> : <LoginNavbar activePage={pathname} />;
+  return user ? (
+    <Navbar user={user} activePage={pathname} onLogout={checkUser} /> 
+  ) : (
+    <LoginNavbar activePage={pathname} />
+  );
 }

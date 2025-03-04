@@ -75,7 +75,7 @@ export async function handleLogout() {
     method: "POST",
     credentials: "include",
   });
-  window.location.href = "/auth"; // Redirect to login page
+  // window.location.href = "/auth"; // Redirect to login page
 }
 
 
