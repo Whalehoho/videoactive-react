@@ -3,15 +3,17 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const authToken = cookieStore.get("AuthToken")?.value;
 
     if (!authToken) {
       return NextResponse.json({ error: "Missing AuthToken" }, { status: 401 });
     }
 
-    // Fetch user details from the backend
+    // ✅ Call backend /validate-token since it also returns user info
     const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/validate-token`, {
+      method: "GET",
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${authToken}`,
@@ -23,7 +25,7 @@ export async function GET() {
     }
 
     const data = await res.json();
-    return NextResponse.json({ user: data.user });
+    return NextResponse.json({ user: data.user }); // ✅ Return user details
   } catch (error) {
     console.error("User fetch error:", error);
     return NextResponse.json({ error: "Failed to retrieve user data" }, { status: 500 });

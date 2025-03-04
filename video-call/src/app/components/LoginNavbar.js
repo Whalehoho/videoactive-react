@@ -16,7 +16,7 @@ export default function Navbar({ activePage }) {
           <li>
             <Link 
               href="/"
-              className={`px-4 py-2 rounded-lg ${activePage === "home" ? "bg-pink-600 text-white" : "text-gray-700 hover:bg-gray-200"}`}
+              className={`px-4 py-2 rounded-lg ${activePage === "/" ? "bg-pink-600 text-white" : "text-gray-700 hover:bg-gray-200"}`}
             >
               Home
             </Link>
@@ -24,7 +24,7 @@ export default function Navbar({ activePage }) {
           <li>
             <Link 
               href="/aboutUs"
-              className={`px-4 py-2 rounded-lg ${activePage === "about" ? "bg-pink-600 text-white" : "text-gray-700 hover:bg-gray-200"}`}
+              className={`px-4 py-2 rounded-lg ${activePage === "/aboutUs" ? "bg-pink-600 text-white" : "text-gray-700 hover:bg-gray-200"}`}
             >
               About
             </Link>

@@ -1,41 +1,27 @@
 "use client";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import Navbar from "./Navbar";
 import LoginNavbar from "./LoginNavbar";
+import { fetchUser } from "../services/api"; // ✅ Centralized API function
 
 export default function NavbarSwitcher() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const pathname = usePathname(); // ✅ Get current path
 
   useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const sessionRes = await fetch("/api/auth/check-session", { credentials: "include" });
-        if (!sessionRes.ok) {
-          setUser(null);
-          setLoading(false);
-          return;
-        }
-
-        const userRes = await fetch("/api/auth/user", { credentials: "include" });
-        if (userRes.ok) {
-          const userData = await userRes.json();
-          setUser(userData.user);
-        } else {
-          setUser(null);
-        }
-      } catch (error) {
-        console.error("Authentication error:", error);
-        setUser(null);
-      } finally {
-        setLoading(false);
-      }
+    const checkUser = async () => {
+      const userData = await fetchUser(); // ✅ Call fetchUser() directly
+      setUser(userData);
+      setLoading(false);
+      console.log(userData);
     };
 
-    checkSession();
+    checkUser();
   }, []);
 
-  if (loading) return null; // Prevents flickering while checking session
+  if (loading) return null; // Prevent flickering while loading
 
-  return user ? <Navbar user={user} /> : <LoginNavbar />;
+  return user ? <Navbar user={user} activePage={pathname} /> : <LoginNavbar activePage={pathname} />;
 }

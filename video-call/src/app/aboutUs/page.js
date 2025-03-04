@@ -1,10 +1,6 @@
-import NavbarSwitcher from "../components/NavbarSwitcher"; // ✅ Import NavbarSwitcher
-import Footer from "../components/Footer";
-
 export default function About() {
   return (
     <div>
-      <NavbarSwitcher />
       <main className="text-center">
         {/* Hero Section */}
         <section className="relative w-full h-[400px]">
@@ -40,7 +36,6 @@ export default function About() {
           </div>
         </section>
       </main>
-      <Footer />
     </div>
   );
 }

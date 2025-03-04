@@ -1,18 +1,29 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 
-export async function GET() {
+export async function POST() {
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/user`, {
-      credentials: "include",
-    });
+    const cookieStore = cookies();
+    const authToken = cookieStore.get("AuthToken")?.value;
 
-    if (!res.ok) {
-      return NextResponse.json({ user: null }, { status: 404 });
+    if (authToken) {
+      // Notify backend to invalidate the session
+      await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/logout`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        credentials: "include",
+      });
     }
 
-    const user = await res.json();
-    return NextResponse.json({ user });
+    // Clear the authentication token from cookies
+    cookieStore.delete("AuthToken");
+
+    return NextResponse.json({ message: "Logged out successfully" }, { status: 200 });
   } catch (error) {
-    return NextResponse.json({ error: "User fetch error" }, { status: 500 });
+    console.error("Logout error:", error);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

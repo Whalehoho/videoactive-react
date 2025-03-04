@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import Navbar from "../components/Navbar";
-import Footer from "../components/Footer";
+import { fetchUser } from "../services/api"; // ✅ Use centralized API function
 
 export default function ConnectionPage() {
   const router = useRouter();
@@ -12,31 +11,16 @@ export default function ConnectionPage() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const sessionRes = await fetch("/api/auth/check-session", { credentials: "include" });
-        if (!sessionRes.ok) {
-          router.push("/auth"); // Redirect to login if not authenticated
-          return;
-        }
-
-        const userRes = await fetch("/api/auth/user", { credentials: "include" });
-        if (userRes.ok) {
-          const userData = await userRes.json();
-          setUser(userData.user);
-        } else {
-          router.push("/auth");
-        }
-      } catch (error) {
-        console.error("Authentication error:", error);
+    fetchUser().then((data) => {
+      if (!data) {
         router.push("/auth");
-      } finally {
-        setLoading(false);
+      } else {
+        setUser(data.user);
       }
-    };
-
-    checkSession();
-  }, [router]);
+      setLoading(false);
+      console.log(user);
+    });
+  }, []);
 
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
@@ -46,7 +30,6 @@ export default function ConnectionPage() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Navbar activePage="connections" />
       <main className="flex-grow flex flex-col md:flex-row">
         <aside className="w-full md:w-1/3 bg-gray-700 p-6 text-white">
           <h2 className="text-lg font-semibold">Online Contacts</h2>
@@ -61,14 +44,13 @@ export default function ConnectionPage() {
 
         <section className="flex-1 flex flex-col items-center justify-center p-10">
           <h1 className="text-2xl text-black font-bold">
-            My Username: <span className="text-pink-600">{user?.name || "Guest"}</span>
+            My Username: <span className="text-pink-600">{user?.email || "Guest"}</span>
           </h1>
           <button className="bg-green-500 text-white px-6 py-3 rounded-lg mt-5 hover:bg-green-600 transition">
             Start a Random Call
           </button>
         </section>
       </main>
-      <Footer />
     </div>
   );
 }

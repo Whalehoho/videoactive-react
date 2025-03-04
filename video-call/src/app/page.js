@@ -1,12 +1,11 @@
 "use client";
 import NavbarSwitcher from "./components/NavbarSwitcher";
-import Footer from "./components/Footer";
 import Link from "next/link";
 
 export default function Home() {
   return (
     <div>
-      <NavbarSwitcher />
+      {/* <NavbarSwitcher /> */}
       <main className="text-center">
         {/* Hero Section with Text Overlay */}
         <section className="relative w-full h-[400px]">
@@ -36,7 +35,6 @@ export default function Home() {
           <img src="/landing3.jpg" alt="Group of friends chatting" className="rounded-lg shadow" />
         </section>
       </main>
-      <Footer />
     </div>
   );
 }

@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Footer from "../components/Footer";
 import Image from "next/image";
 import { fetchUser } from "../services/api"; // ✅ Use your own API
 
@@ -46,7 +45,6 @@ export default function HomePage() {
           </div>
         </div>
       </main>
-      <Footer />
     </div>
   );
 }
