@@ -9,4 +9,4 @@ NEXT_PUBLIC_BACKEND_URL=http://localhost:5000
 
 From page.js we call services/api.js (which will call front end api), then all the backend api is stored in api/auth or api/user
 
-halo
+Left Connection page API
