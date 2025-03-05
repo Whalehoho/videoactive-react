@@ -68,14 +68,19 @@ export default function ProfilePage() {
       }
     }
   
-    const success = await updateUser({ name, gender, description, image: imageUrl });
-  
-    if (success) {
+    const response = await updateUser({ name, gender, description, image: imageUrl });
+
+    if (response?.message === "success" && response.user) {
       alert("Profile updated successfully!");
-      setUser((prev) => ({ ...prev, name, gender, description, image: imageUrl }));
+      setUser(response.user); // ✅ Update user directly from response
+      setName(response.user.name || "");
+      setGender(response.user.gender ?? true); 
+      setDescription(response.user.description || "");
+      setImage(response.user.image || null);
     } else {
       alert("Failed to update profile.");
     }
+
     setUpdating(false);
   };
   
