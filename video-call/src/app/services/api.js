@@ -9,8 +9,8 @@ export async function fetchUser() {
     if (!response.ok) {
       return null;
     }
-
-    return await response.json();
+    const data = await response.json()
+    return data;
   } catch (error) {
     console.error("Error fetching user:", error);
     return null;

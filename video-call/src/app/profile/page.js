@@ -8,6 +8,7 @@ export default function ProfilePage() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [gender, setGender] = useState(true); // Boolean: true = Male, false = Female
   const [description, setDescription] = useState("");
   const [image, setImage] = useState(null); // Local preview
@@ -15,20 +16,21 @@ export default function ProfilePage() {
   const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
-    fetchUser().then((data) => {
-      if (!data) {
+    fetchUser().then((info) => {
+      console.log(info)
+      if (!info) {
         router.push("/auth");
       } else {
-        setUser(data.user);
-        setName(data.user.name || "");
-        setGender(data.user.gender ?? true);
-        setDescription(data.user.description || "");
-        setImage(data.user.image || null);
+        setUser(info.data);
+        setEmail(info.data.email);
+        setName(info.data.username || "");
+        setGender(info.data.gender ?? true);
+        setDescription(info.data.description || "");
+        setImage(info.data.profilePic || null);
       }
       setLoading(false);
     });
   }, []);
-  
   // Handle image selection
   const handleImageChange = (event) => {
     const file = event.target.files[0];

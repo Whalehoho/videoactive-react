@@ -15,7 +15,6 @@ export default function About() {
             </h1>
           </div>
         </section>
-
         {/* About Us Content */}
         <section className="p-10 max-w-3xl mx-auto text-left">
           <p className="text-lg text-gray-700 leading-relaxed">

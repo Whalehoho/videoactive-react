@@ -25,7 +25,7 @@ export async function GET() {
     }
 
     const data = await res.json();
-    return NextResponse.json({ user: data.user }); // ✅ Return user details
+    return NextResponse.json({ data }); // ✅ Return user details
   } catch (error) {
     console.error("User fetch error:", error);
     return NextResponse.json({ error: "Failed to retrieve user data" }, { status: 500 });
