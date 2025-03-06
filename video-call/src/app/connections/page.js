@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { fetchUser } from "../services/api"; // ✅ Use centralized API function
+import { fetchUser, fetchContacts } from "../services/api"; // ✅ Use centralized API function
 
 export default function ConnectionPage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [contacts, setContacts] = useState([]);
 
   useEffect(() => {
     fetchUser().then((data) => {
@@ -18,7 +19,12 @@ export default function ConnectionPage() {
         setUser(data.user);
       }
       setLoading(false);
-      console.log(user);
+    });
+    
+    fetchContacts().then((data) => {
+      if (data && data.contacts) {
+        setContacts(data.contacts);
+      }
     });
   }, []);
 
@@ -40,8 +46,18 @@ export default function ConnectionPage() {
             onChange={(e) => setSearch(e.target.value)}
             className="w-full p-2 mt-2 text-black border border-gray-300 rounded"
           />
+          <ul className="mt-4">
+            {contacts
+              .filter((contact) =>
+                contact.contactName.toLowerCase().includes(search.toLowerCase())
+              )
+              .map((contact) => (
+                <li key={contact.contactId} className="p-2 border-b border-gray-500">
+                  {contact.contactName}
+                </li>
+              ))}
+          </ul>
         </aside>
-
         <section className="flex-1 flex flex-col items-center justify-center p-10">
           <h1 className="text-2xl text-black font-bold">
             My Username: <span className="text-pink-600">{user?.email || "Guest"}</span>
