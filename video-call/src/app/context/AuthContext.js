@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { fetchUser } from "../services/api"; // Import API function
 
 const AuthContext = createContext(null);
+export const useAuthContext = () => useContext(AuthContext);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);

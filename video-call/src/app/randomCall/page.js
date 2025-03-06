@@ -71,7 +71,7 @@ export default function ConnectionPage() {
       setStatus("searching");
       await getLocalMedia();
 
-      const socketConnection = new WebSocket("ws://localhost:5000/ws/random");
+      const socketConnection = new WebSocket(`${process.env.NEXT_PUBLIC_BACKEND_WEBSOCKET_URL}/ws/random`);
       socketConnection.onopen = () => {
         console.log("Connected to WebSocket server");
         setStatus("searching");
