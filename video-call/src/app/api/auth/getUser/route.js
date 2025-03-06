@@ -24,8 +24,7 @@ export async function GET() {
       return NextResponse.json({ error: "Invalid session" }, { status: 401 });
     }
 
-    const data = await res.json();
-    return NextResponse.json({ data }); // ✅ Return user details
+    return res; // ✅ Return user details
   } catch (error) {
     console.error("User fetch error:", error);
     return NextResponse.json({ error: "Failed to retrieve user data" }, { status: 500 });

@@ -21,12 +21,13 @@ export default function ProfilePage() {
       if (!info) {
         router.push("/auth");
       } else {
-        setUser(info.data);
-        setEmail(info.data.email);
-        setName(info.data.username || "");
-        setGender(info.data.gender ?? true);
-        setDescription(info.data.description || "");
-        setImage(info.data.profilePic || null);
+        console.log("fetch data:" + info.message )
+        setUser(info.user);
+        setEmail(info.user.email);
+        setName(info.user.username || "");
+        setGender(info.user.gender ?? true);
+        setDescription(info.user.description || "");
+        setImage(info.user.profilePic || null);
       }
       setLoading(false);
     });
@@ -62,7 +63,7 @@ export default function ProfilePage() {
       const uploadResponse = await uploadImage(imageFile);
       if (uploadResponse?.imageUrl) {
         imageUrl = uploadResponse.imageUrl;
-        setImage(`${imageUrl}?t=${new Date().getTime()}`); // ✅ refresh to prevent cache data
+        setImage(imageUrl); // ✅ refresh to prevent cache data
       } else {
         alert("Failed to upload image.");
         setUpdating(false);

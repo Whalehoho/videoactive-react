@@ -10,11 +10,10 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     fetchUser()
-      .then((data) => setUser(data))
+      .then((data) => setUser(data.user))
       .catch(() => setUser(null))
       .finally(() => setLoading(false));
   }, []);
-
   return (
     <AuthContext.Provider value={{ user, setUser, loading }}>
       {children}
