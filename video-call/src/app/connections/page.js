@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { fetchUser, fetchContacts } from "../services/api"; // ✅ Use centralized API function
 import { useWebSocket } from '../context/WebSocketContext'; // ✅ Use WebSocket context
+import { ResizableBox } from 'react-resizable';
+import 'react-resizable/css/styles.css'; // Import the styles for the resizable component
 
 export default function ConnectionPage() {
   const { 
@@ -376,7 +378,7 @@ export default function ConnectionPage() {
         {/* Video Call Section */}
         <section className="flex-1 flex flex-col items-center justify-center p-10 relative">
           <h2 className="text-xl font-bold mb-4">UserName: {user?.username}</h2>
-          <div className="mb-6 text-lg">
+          <div className="mb-2 text-lg">
             {targetClientId ? (
               incomingCalls.some((call) => call.from === targetClientId) ? (
                 <p>
@@ -413,8 +415,17 @@ export default function ConnectionPage() {
 
           {status === "calling" && (
             <>
-              <div className="w-full h-[90vh] flex items-center justify-center relative">
-                <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full" />
+              <div className="w-full h-[60vh] flex items-end justify-start relative">
+              <ResizableBox
+                width={800}
+                height={500}
+                minConstraints={[800, 500]}
+                maxConstraints={[1500, 700]}
+                className="rounded-lg"
+                resizeHandles={["ne"]}
+              >
+                <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
+                </ResizableBox>
               </div>
               <button
                 onClick={hangUp}
@@ -427,9 +438,18 @@ export default function ConnectionPage() {
 
           {/* Local Video - Positioned Absolutely */}
           {status === "calling" && (
-            <div className="absolute top-4 right-4 w-48 h-36 border border-black">
+            <div className="absolute top-4 right-4">
+              <ResizableBox
+                width={250}
+                height={160}
+                minConstraints={[160, 240]}
+                maxConstraints={[500, 480]}
+                className="absolute bottom-0 left-4 rounded-lg border border-black"
+                resizeHandles={["sw"]}
+              >
               <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
               <p className="text-center text-sm text-white bg-gray-700">local video</p>
+              </ResizableBox>
             </div>
           )}
         </section>
