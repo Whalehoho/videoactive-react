@@ -2,14 +2,15 @@
 
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { fetchUser } from "../services/api";
+import { fetchUser, fetchAuthToken } from "../services/api";
 
 
 const WebSocketContext = createContext(null);
 
 export const WebSocketProvider = ({ children }) => {
-    const router = useRouter();
+  const router = useRouter();
   const socketRef = useRef(null);
+  const [authToken, setAuthToken] = useState(null);
   const [clientId, setClientId] = useState(null);
   const [onlineContacts, setOnlineContacts] = useState([]);
   const [incomingCalls, setIncomingCalls] = useState([]); // Store incoming call data
@@ -30,12 +31,31 @@ export const WebSocketProvider = ({ children }) => {
       
     }, []);
 
+    useEffect(() => {
+      if (!clientId || clientId === "DefaultClient") return;
+      const fetchToken = async () => {
+        if (!clientId || clientId === "DefaultClient") return;
+        await fetchAuthToken().then((data) => {
+          console.log("Auth token fetched: ", data);
+          setAuthToken(data);
+        });
+      };
+      fetchToken();
+    }, [clientId]);
+
+
+
   useEffect(() => {
+    console.log("clientId: ", clientId);
+    console.log("authToken: ", authToken);
     if (!clientId || clientId === "DefaultClient") return;
+    if (!authToken) return;
 
     try {
+
+      console.log("authToken: ", authToken);
       const socketConnection = new WebSocket(
-        `${process.env.NEXT_PUBLIC_BACKEND_WEBSOCKET_URL}/ws/direct?clientId=${clientId}`
+        `${process.env.NEXT_PUBLIC_BACKEND_WEBSOCKET_URL}/ws/direct?authToken=${authToken}`
       );
 
       socketConnection.onopen = () => {
@@ -66,14 +86,25 @@ export const WebSocketProvider = ({ children }) => {
         socketRef.current.close();
       }
     };
-  }, [clientId]);
+  }, [clientId, authToken]);
 
   // Handle incoming messages
   const handleMessage = (message) => {
     switch (message.type) {
-      case "contacts-online":
+      case "online-contacts":
         setOnlineContacts(message.contacts);
         break;
+      case "contact-online":
+        useEffect(() => {
+          // This cleanup function will run when component unmounts
+          return () => {
+              console.log("Component unmounting - cleaning up");
+              hangUp();
+          };
+        }, []); // Empty dependency array means this runs only on mount/unmount
+        break;
+      case "contact-offline":
+        setOnlineContacts((prevContacts) => prevContacts.filter(contact => contact.contactId !== message.contact.contactId));
       case "signal":
         handleSignalingMessage(message);
         break;

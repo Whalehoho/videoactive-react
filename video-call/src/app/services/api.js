@@ -2,6 +2,24 @@
 
 export const loginRedirectUrl = "/api/auth/login"; // will be used in auth page to redirect to google login page
 
+export async function fetchAuthToken() {
+  try {
+    const response = await fetch("/api/auth/token", {
+      method: "GET",
+      credentials: "include",
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch auth token");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching auth token:", error);
+    return null;
+  }
+}
+
 export async function handleLogout() { //this function will handle logout
   await fetch("/api/auth/logout", {
     method: "POST",
@@ -118,12 +136,12 @@ export async function addContactRequest(friendId) { // this function used on ran
 
 export async function acceptContactRequest(friendId) {
   try {
-    const response = await fetch("/api/acceptContact", {
+    const response = await fetch("/api/connections/acceptContact", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ friendId }),
+      body: JSON.stringify( {friendId} ),
       credentials: "include", // ✅ Ensures cookies are sent
     });
 
@@ -165,3 +183,4 @@ export async function rejectContactRequest(friendId) {
     return null;
   }
 }
+

@@ -22,7 +22,7 @@ export default function RootLayout({ children }) {
         <WebSocketProvider>
           <NavbarSwitcher /> {/*  Navbar always at the top */}
           <main className="flex-grow">{children}</main> {/*  Makes content take full height */}
-          <Footer /> {/*  Footer always at the bottom */}
+          <Footer />  Footer always at the bottom
         </WebSocketProvider>
       </body>
     </html>

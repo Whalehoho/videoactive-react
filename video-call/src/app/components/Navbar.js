@@ -2,9 +2,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { handleLogout } from "../services/api";
+import { useWebSocket } from "../context/WebSocketContext";
 
 export default function Navbar({ activePage, user, onLogout }) { 
   const router = useRouter();
+  const { incomingCalls } = useWebSocket();
+  const hasIncomingCalls = incomingCalls.length > 0;
 
   const handleUserLogout = async () => {
     await handleLogout();
@@ -46,6 +49,9 @@ export default function Navbar({ activePage, user, onLogout }) {
             >
               Connections
             </Link>
+            {hasIncomingCalls && (
+              <span className="absolute top-0 right-60 w-3 h-3 bg-pink-600 rounded-full animate-pulse"></span>
+            )}
           </li>
           <li>
             <Link 
