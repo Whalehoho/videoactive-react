@@ -23,6 +23,7 @@ export default function ConnectionPage() {
   const [targetClientId, setTargetClientId] = useState(null);
   const targetClientIdRef = useRef(targetClientId);
   const [status, setStatus] = useState("idle");
+  const statusRef = useRef(status);
   const peerRef = useRef(null);
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
@@ -175,6 +176,7 @@ export default function ConnectionPage() {
       if(!targetClientId) return;
       console.log("Starting call with: ", targetClientId);
       setStatus("calling");
+      statusRef.current = "calling";
       // await getLocalMedia();
       await createPeerConnection();
       await createOffer();
@@ -189,6 +191,7 @@ export default function ConnectionPage() {
       setIncomingCalls(prevCalls => prevCalls.filter(call => String(call.from) !== String(targetClientId))); // Remove from the queue
       console.log("Answering call from: ", targetClientId);
       setStatus("calling");
+      statusRef.current = "calling";
       // Set offer data from incoming call
       const remoteOfferData = incomingCalls.find(call => String(call.from) === String(targetClientId))?.signalData;
       if(!remoteOfferData) {
@@ -207,8 +210,13 @@ export default function ConnectionPage() {
   };
 
   const hangUp = () => {
+    if(statusRef.current === "idle") {
+      console.log("No active call to hang up.");
+      return;
+    }
     console.log("Hanging up call...");
     setStatus("idle");
+    statusRef.current = "idle";
     console.log("Sending hang-up signal from: ", clientId, " to: ", targetClientId);
     sendSignalingMessage('hang-up', targetClientIdRef.current, clientId, null); // Use ref to get the target client ID because it may have been reset
     setTargetClientId(null);
