@@ -21,6 +21,7 @@ export default function ConnectionPage() {
     messageHistory, setMessageHistory
   } = useWebSocket();
   const [targetClientId, setTargetClientId] = useState(null);
+  const targetClientIdRef = useRef(targetClientId);
   const [status, setStatus] = useState("idle");
   const peerRef = useRef(null);
   const localVideoRef = useRef(null);
@@ -208,8 +209,10 @@ export default function ConnectionPage() {
   const hangUp = () => {
     console.log("Hanging up call...");
     setStatus("idle");
-    sendSignalingMessage('hang-up', targetClientId, clientId, null);
+    console.log("Sending hang-up signal from: ", clientId, " to: ", targetClientId);
+    sendSignalingMessage('hang-up', targetClientIdRef.current, clientId, null); // Use ref to get the target client ID because it may have been reset
     setTargetClientId(null);
+    targetClientIdRef.current = null;
     setOfferData(null);
 
     if(peerRef.current) {
@@ -396,7 +399,11 @@ export default function ConnectionPage() {
                 return (
                   <li
                     key={contact.contactId}
-                    onClick={() => setTargetClientId(contact.contactId)}
+                    onClick={() => {
+                        setTargetClientId(contact.contactId);
+                        targetClientIdRef.current = contact.contactId;
+                      }
+                    }
                     className={`relative p-2 rounded-lg cursor-pointer ${
                       targetClientId === contact.contactId ? "" : ""
                     } hover:bg-blue-400 hover:text-white`}
