@@ -177,12 +177,6 @@ export default function ConnectionPage() {
         console.log("Peer disconnected.");
         hangUp();
         break;
-      case 'contact-request':
-        handleContactRequest(message);
-        break;
-      case 'accept-request':
-        handleAcceptRequest(message);
-        break;
       default:
         console.warn("Unknown message type: ", message.type);
         break;
@@ -427,7 +421,7 @@ export default function ConnectionPage() {
       <div className="flex flex-row h-[80%] relative">
         {/* Left Section */}
         <div className="w-1/4 py-20 flex flex-col items-center space-y-12">
-          <p className="text-gray-500">Status: {status}</p>
+          <p className="text-gray-500 text-lg">Status: {status}</p>
           {status === "disconnected" && (
             <button
               className="bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 transition"
@@ -465,7 +459,7 @@ export default function ConnectionPage() {
         <ResizableBox
           width={250}
           height={160}
-          minConstraints={[160, 240]}
+          minConstraints={[250, 160]}
           maxConstraints={[500, 480]}
           className="absolute bottom-0 left-4 rounded-lg border border-black"
           resizeHandles={["ne"]}

@@ -50,7 +50,7 @@ export default function Navbar({ activePage, user, onLogout }) {
               Connections
             </Link>
             {hasIncomingCalls && (
-              <span className="absolute top-0 right-60 w-3 h-3 bg-pink-600 rounded-full animate-pulse"></span>
+              <span className="absolute top-0 right-60 w-3 h-3 bg-blue-500 rounded-full animate-ping"></span>
             )}
           </li>
           <li>

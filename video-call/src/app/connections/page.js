@@ -16,7 +16,9 @@ export default function ConnectionPage() {
     offerData, setOfferData,
     answerData, setAnswerData, 
     hangUpData, setHangUpData,
-    iceCandidateData, setIceCandidateData  
+    iceCandidateData, setIceCandidateData,
+    sendSignalingMessage,
+    messageHistory, setMessageHistory
   } = useWebSocket();
   const [targetClientId, setTargetClientId] = useState(null);
   const [status, setStatus] = useState("idle");
@@ -26,6 +28,9 @@ export default function ConnectionPage() {
   const localStreamRef = useRef(null);
   const remoteStreamRef = useRef(null);
   const candidateQueue = useRef([]);
+
+  const [messageToSend, setMessageToSend] = useState("");
+ 
 
   const router = useRouter();
   const [user, setUser] = useState(null);
@@ -44,7 +49,15 @@ export default function ConnectionPage() {
     ],
   };
 
-  
+  useEffect(() => {
+    //print online contacts
+    console.log("Online contacts: ", onlineContacts);
+  }, [onlineContacts]);
+
+  useEffect(() => {
+    //print message history
+    console.log("Message history: ", messageHistory);
+  }, [messageHistory]);
 
   useEffect(() => {
     fetchUser().then((data) => {
@@ -156,10 +169,11 @@ export default function ConnectionPage() {
   const answerCall = async () => {
     try {
       if(!targetClientId) return;
+      setIncomingCalls(prevCalls => prevCalls.filter(call => String(call.from) !== String(targetClientId))); // Remove from the queue
       console.log("Answering call from: ", targetClientId);
       setStatus("calling");
       // Set offer data from incoming call
-      const remoteOfferData = incomingCalls.find(call => call.from === targetClientId)?.signalData;
+      const remoteOfferData = incomingCalls.find(call => String(call.from) === String(targetClientId))?.signalData;
       if(!remoteOfferData) {
         console.error("No offer data found for incoming call.");
         return;
@@ -178,7 +192,7 @@ export default function ConnectionPage() {
   const hangUp = () => {
     console.log("Hanging up call...");
     setStatus("idle");
-    sendSignalingMessage('hang-up', null);
+    sendSignalingMessage('hang-up', targetClientId, clientId, null);
     setTargetClientId(null);
     setOfferData(null);
 
@@ -276,28 +290,9 @@ export default function ConnectionPage() {
     peerRef.current.onicecandidate = (event) => {
         if (event.candidate) {
             console.log("Sending ICE candidate to peer: ", event.candidate);
-            sendSignalingMessage('ice-candidate', event.candidate);
+            sendSignalingMessage('ice-candidate', targetClientId, clientId, event.candidate);
         }
     };
-  };
-
-  
-
-  // Send signaling message to the server
-  const sendSignalingMessage = (type, signal) => {
-    const message = {
-        type: 'signal',
-        to: targetClientId,
-        from: clientId,
-        signalType: type,
-        signalData: signal,
-    };
-    if (socketRef) {
-        console.log("Sending signal: ", message);
-        socketRef.current.send(JSON.stringify(message));
-    } else {
-        console.error("Socket connection not available.");
-    }
   };
 
 
@@ -312,7 +307,7 @@ export default function ConnectionPage() {
         const offer = await peerRef.current.createOffer();
         await peerRef.current.setLocalDescription(offer);
         console.log("Offer created: ", offer);
-        sendSignalingMessage('offer', offer);
+        sendSignalingMessage('offer', targetClientId, clientId, offer);
     } catch (error) {
         console.error("Error creating offer: ", error);
     }
@@ -325,10 +320,27 @@ export default function ConnectionPage() {
           const answer = await peerRef.current.createAnswer();
           await peerRef.current.setLocalDescription(answer);
           console.log("Answer created: ", answer);
-          sendSignalingMessage('answer', answer);
+          sendSignalingMessage('answer', targetClientId, clientId, answer);
       } catch (error) {
           console.error("Error creating answer: ", error);
       }
+  };
+
+  const sendMessage = () => {
+    if (!messageToSend || !targetClientId) return;
+    console.log(`Sending message from ${clientId} to ${targetClientId}: `, messageToSend);
+    const createdAt = new Date().toISOString();
+    sendSignalingMessage(
+      'instant-message', 
+      targetClientId, clientId, 
+      { 
+        senderName: user.username,
+        content: messageToSend, 
+        createdAt: createdAt
+       }
+    );
+    setMessageHistory(prevMessages => [...prevMessages, { sender: clientId, message: messageToSend, createdAt: createdAt }]);
+    setMessageToSend("");
   };
 
   if (loading) {
@@ -351,12 +363,12 @@ export default function ConnectionPage() {
             className="w-full p-2 mt-2 text-black border border-gray-300 rounded"
           />
           <ul className="space-y-2">
-            {onlineContacts
+            { onlineContacts
               .filter((contact) =>
-                contact.contactName.toLowerCase().includes(search.toLowerCase())
+                contact?.contactName.toLowerCase().includes(search.toLowerCase())
               ).map((contact) => {
-                const hasIncomingCall = incomingCalls.some((call) => call.from === contact.contactId);
-
+                const hasIncomingCall = incomingCalls.some((call) => String(call.from) === String(contact.contactId));
+  
                 return (
                   <li
                     key={contact.contactId}
@@ -367,36 +379,106 @@ export default function ConnectionPage() {
                   >
                     {contact.contactName}
                     {hasIncomingCall && (
-                      <span className="absolute top-1 right-2 w-3 h-3 bg-pink-600 rounded-full animate-pulse"></span>
+                      <span className="absolute top-1 right-2 w-3 h-3 bg-blue-500 rounded-full animate-ping"></span>
                     )}
                   </li>
                 );
               })}
           </ul>
         </aside>
+  
+        {/* Chat Box - Resizable and Positioned Correctly */}
+        { (targetClientId) &&
+          <div className="absolute top-4 left-1/4 z-50  rounded-lg p-4 ">
+            <ResizableBox
+              width={400}
+              height={200}
+              minConstraints={[300, 150]}
+              maxConstraints={[600, 800]}
+              className="rounded-lg overflow-hidden bg-white border-2 border-gray-700"
+              resizeHandles={["se"]}
+            >
+              <div className="flex flex-col h-full">
+                {/* Message History */}
+                <div className="flex-grow overflow-y-auto border-b-2 border-gray-500 p-2">
+                  {messageHistory
+                    .filter(
+                      (msg) =>
+                        String(msg.sender) === String(clientId) || 
+                        String(msg.sender) === String(targetClientId)
+                    )
+                    .map((msg, index) => (
+                      <div
+                        key={index}
+                        className={`flex ${
+                          String(msg.sender) === String(targetClientId) ? "justify-start" : "justify-end"
+                        } p-2`}
+                      >
+                        <div
+                          className={`rounded-lg px-3 py-2 max-w-xs ${
+                            String(msg.sender) === String(targetClientId)
+                              ? "bg-gray-200 text-black"
+                              : "bg-gray-200 text-black"
+                          }`}
+                        >
+                          <span className="font-semibold">
+                            {String(msg.sender) === String(targetClientId) ? `${msg.senderName}:` : ""}
+                          </span>{" "}
+                          {msg.message}
+                        </div>
+                      </div>
+                    ))}
+                </div>
 
+                {/* Input and Send Button */}
+                <div className="flex items-center space-x-2 p-2">
+                  <input
+                    type="text"
+                    placeholder="Type a message..."
+                    value={messageToSend}
+                    onChange={(e) => setMessageToSend(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        sendMessage();
+                      }
+                    }}
+                    className="flex-1 p-2 text-black border border-gray-300 rounded"
+                  />
+                  <button
+                    onClick={sendMessage}
+                    className="px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg shadow-md hover:bg-blue-600 transition"
+                  >
+                    Send
+                  </button>
+                </div>
+              </div>
+            </ResizableBox>
+          </div>
+        }
+
+  
         {/* Video Call Section */}
         <section className="flex-1 flex flex-col items-center justify-center p-10 relative">
           <h2 className="text-xl font-bold mb-4">UserName: {user?.username}</h2>
           <div className="mb-2 text-lg">
             {targetClientId ? (
-              incomingCalls.some((call) => call.from === targetClientId) ? (
+              incomingCalls.some((call) => String(call.from) === String(targetClientId)) ? (
                 <p>
-                  Answer <span className="font-semibold">{onlineContacts.find(contact => contact.contactId === targetClientId)?.contactName}</span>
+                  Answer <span className="font-semibold">{onlineContacts.find(contact => String(contact.contactId) === String(targetClientId))?.contactName}</span>
                 </p>
               ) : (
                 <p>
-                  Calling: <span className="font-semibold">{onlineContacts.find(contact => contact.contactId === targetClientId)?.contactName}</span>
+                  Calling: <span className="font-semibold">{onlineContacts.find(contact => String(contact.contactId) === String(targetClientId))?.contactName}</span>
                 </p>
               )
             ) : (
               <p className="text-gray-500">Select a contact to start a call.</p>
             )}
           </div>
-
+  
           {/* Call Buttons */}
           {status === "idle" && (
-            incomingCalls.some((call) => call.from === targetClientId) ? (
+            incomingCalls.some((call) => String(call.from) === String(targetClientId)) ? (
               <button
                 onClick={answerCall}
                 className="px-6 py-3 bg-blue-500 text-white font-semibold rounded-lg shadow-md hover:bg-blue-600 transition"
@@ -412,19 +494,19 @@ export default function ConnectionPage() {
               </button>
             )
           )}
-
+  
           {status === "calling" && (
             <>
               <div className="w-full h-[60vh] flex items-end justify-start relative">
-              <ResizableBox
-                width={800}
-                height={500}
-                minConstraints={[800, 500]}
-                maxConstraints={[1500, 700]}
-                className="rounded-lg"
-                resizeHandles={["ne"]}
-              >
-                <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
+                <ResizableBox
+                  width={800}
+                  height={500}
+                  minConstraints={[800, 500]}
+                  maxConstraints={[1500, 700]}
+                  className="rounded-lg"
+                  resizeHandles={["ne"]}
+                >
+                  <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
                 </ResizableBox>
               </div>
               <button
@@ -435,20 +517,20 @@ export default function ConnectionPage() {
               </button>
             </>
           )}
-
+  
           {/* Local Video - Positioned Absolutely */}
           {status === "calling" && (
             <div className="absolute top-4 right-4">
               <ResizableBox
                 width={250}
                 height={160}
-                minConstraints={[160, 240]}
+                minConstraints={[250, 160]}
                 maxConstraints={[500, 480]}
                 className="absolute bottom-0 left-4 rounded-lg border border-black"
                 resizeHandles={["sw"]}
               >
-              <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
-              <p className="text-center text-sm text-white bg-gray-700">local video</p>
+                <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+                <p className="text-center text-sm text-white bg-gray-700">local video</p>
               </ResizableBox>
             </div>
           )}
@@ -456,4 +538,6 @@ export default function ConnectionPage() {
       </main>
     </div>
   );
+  
+  
 }
