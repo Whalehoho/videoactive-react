@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, use } from "react";
 import { useRouter } from "next/navigation";
-import { fetchUser, fetchContacts } from "../services/api"; // ✅ Use centralized API function
+import { fetchUser, fetchContacts, insertMessage } from "../services/api"; // ✅ Use centralized API function
 import { useWebSocket } from '../context/WebSocketContext'; // ✅ Use WebSocket context
 import { ResizableBox } from 'react-resizable';
 import 'react-resizable/css/styles.css'; // Import the styles for the resizable component
@@ -29,6 +29,7 @@ export default function ConnectionPage() {
   const remoteStreamRef = useRef(null);
   const candidateQueue = useRef([]);
 
+  const [contacts, setContacts] = useState([]);
   const [messageToSend, setMessageToSend] = useState("");
  
 
@@ -48,6 +49,8 @@ export default function ConnectionPage() {
         }
     ],
   };
+
+  
 
   useEffect(() => {
     //print online contacts
@@ -74,6 +77,19 @@ export default function ConnectionPage() {
     //     setContacts(data.contacts);
     //   }
     // }); // Should only fetch online contacts, use websocket instead
+  }, []);
+
+  useEffect(() => {
+    //fetch contacts
+    const fetchContactsData = async () => {
+      await fetchContacts().then((data) => {
+        if (data && data.contacts) {
+          console.log("Contacts fetched: ", data.contacts);
+          setContacts(data.contacts);
+        }
+      });
+    };
+    fetchContactsData();
   }, []);
 
   useEffect(() => {
@@ -326,7 +342,7 @@ export default function ConnectionPage() {
       }
   };
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     if (!messageToSend || !targetClientId) return;
     console.log(`Sending message from ${clientId} to ${targetClientId}: `, messageToSend);
     const createdAt = new Date().toISOString();
@@ -339,7 +355,8 @@ export default function ConnectionPage() {
         createdAt: createdAt
        }
     );
-    setMessageHistory(prevMessages => [...prevMessages, { sender: clientId, message: messageToSend, createdAt: createdAt }]);
+    setMessageHistory(prevMessages => [...prevMessages, { sender: clientId, receiver: targetClientId, message: messageToSend, createdAt: createdAt }]);
+    await insertMessage(messageToSend, clientId, targetClientId); // ✅ Insert message into database
     setMessageToSend("");
   };
 
@@ -354,7 +371,7 @@ export default function ConnectionPage() {
       <main className="flex-grow flex flex-col md:flex-row relative">
         {/* Sidebar - Online Contacts */}
         <aside className="w-full md:w-1/5 bg-gray-700 p-6 text-white">
-          <h2 className="text-lg font-semibold">Online Contacts</h2>
+          <h2 className="text-lg font-semibold">Contacts</h2>
           <input
             type="text"
             placeholder="Search..."
@@ -363,21 +380,30 @@ export default function ConnectionPage() {
             className="w-full p-2 mt-2 text-black border border-gray-300 rounded"
           />
           <ul className="space-y-2">
-            { onlineContacts
+            {contacts
               .filter((contact) =>
                 contact?.contactName.toLowerCase().includes(search.toLowerCase())
-              ).map((contact) => {
-                const hasIncomingCall = incomingCalls.some((call) => String(call.from) === String(contact.contactId));
-  
+              )
+              .map((contact) => {
+                const isOnline = onlineContacts.some(
+                  (online) => String(online.contactId) === String(contact.contactId)
+                );
+
+                const hasIncomingCall = incomingCalls.some(
+                  (call) => String(call.from) === String(contact.contactId)
+                );
+
                 return (
                   <li
                     key={contact.contactId}
                     onClick={() => setTargetClientId(contact.contactId)}
                     className={`relative p-2 rounded-lg cursor-pointer ${
-                      targetClientId === contact ? "bg-blue-500 text-white" : ""
+                      targetClientId === contact.contactId ? "" : ""
                     } hover:bg-blue-400 hover:text-white`}
                   >
-                    {contact.contactName}
+                    <span className={isOnline ? "text-green-400 font-semibold" : ""}>
+                      {contact.contactName}
+                    </span>
                     {hasIncomingCall && (
                       <span className="absolute top-1 right-2 w-3 h-3 bg-blue-500 rounded-full animate-ping"></span>
                     )}
@@ -404,8 +430,8 @@ export default function ConnectionPage() {
                   {messageHistory
                     .filter(
                       (msg) =>
-                        String(msg.sender) === String(clientId) || 
-                        String(msg.sender) === String(targetClientId)
+                        String(msg.sender) === String(clientId) && String(msg.receiver) === String(targetClientId) || 
+                        String(msg.sender) === String(targetClientId) && String(msg.receiver) === String(clientId)
                     )
                     .map((msg, index) => (
                       <div
@@ -437,9 +463,9 @@ export default function ConnectionPage() {
                     placeholder="Type a message..."
                     value={messageToSend}
                     onChange={(e) => setMessageToSend(e.target.value)}
-                    onKeyDown={(e) => {
+                    onKeyDown={async (e) => {
                       if (e.key === "Enter") {
-                        sendMessage();
+                        await sendMessage();
                       }
                     }}
                     className="flex-1 p-2 text-black border border-gray-300 rounded"
@@ -461,39 +487,54 @@ export default function ConnectionPage() {
         <section className="flex-1 flex flex-col items-center justify-center p-10 relative">
           <h2 className="text-xl font-bold mb-4">UserName: {user?.username}</h2>
           <div className="mb-2 text-lg">
-            {targetClientId ? (
-              incomingCalls.some((call) => String(call.from) === String(targetClientId)) ? (
-                <p>
-                  Answer <span className="font-semibold">{onlineContacts.find(contact => String(contact.contactId) === String(targetClientId))?.contactName}</span>
-                </p>
-              ) : (
-                <p>
-                  Calling: <span className="font-semibold">{onlineContacts.find(contact => String(contact.contactId) === String(targetClientId))?.contactName}</span>
-                </p>
-              )
-            ) : (
-              <p className="text-gray-500">Select a contact to start a call.</p>
-            )}
-          </div>
+    {targetClientId ? (
+      incomingCalls.some((call) => String(call.from) === String(targetClientId)) ? (
+        <p>
+          Answer{" "}
+          <span className="font-semibold">
+            {contacts.find((contact) => String(contact.contactId) === String(targetClientId))
+              ?.contactName}
+          </span>
+        </p>
+      ) : (
+        <p>
+          Calling:{" "}
+          <span className="font-semibold">
+            {contacts.find((contact) => String(contact.contactId) === String(targetClientId))
+              ?.contactName}
+          </span>
+        </p>
+      )
+    ) : (
+      <p className="text-gray-500">Select a contact to start a call.</p>
+    )}
+  </div>
   
           {/* Call Buttons */}
           {status === "idle" && (
-            incomingCalls.some((call) => String(call.from) === String(targetClientId)) ? (
-              <button
-                onClick={answerCall}
-                className="px-6 py-3 bg-blue-500 text-white font-semibold rounded-lg shadow-md hover:bg-blue-600 transition"
-              >
-                Answer
-              </button>
-            ) : (
-              <button
-                onClick={startCall}
-                className="px-6 py-3 bg-green-500 text-white font-semibold rounded-lg shadow-md hover:bg-green-600 transition"
-              >
-                Start Call
-              </button>
-            )
-          )}
+    incomingCalls.some((call) => String(call.from) === String(targetClientId)) ? (
+      <button
+        onClick={answerCall}
+        className="px-6 py-3 bg-blue-500 text-white font-semibold rounded-lg shadow-md hover:bg-blue-600 transition"
+      >
+        Answer
+      </button>
+    ) : (
+      <button
+        onClick={startCall}
+        className={`px-6 py-3 font-semibold rounded-lg shadow-md transition ${
+          onlineContacts.some((online) => String(online.contactId) === String(targetClientId))
+            ? "bg-green-500 text-white hover:bg-green-600"
+            : "bg-gray-400 text-gray-700 cursor-not-allowed"
+        }`}
+        disabled={
+          !onlineContacts.some((online) => String(online.contactId) === String(targetClientId))
+        }
+      >
+        Start Call
+      </button>
+    )
+  )}
   
           {status === "calling" && (
             <>

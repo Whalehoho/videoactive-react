@@ -184,3 +184,45 @@ export async function rejectContactRequest(friendId) {
   }
 }
 
+export async function insertMessage(messageText, senderId, receiverId) {
+  try {
+    const response = await fetch("/api/message/addMessage", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ messageText, senderId, receiverId }),
+      credentials: "include",
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      console.error("Error response from Next.js API:", result);
+      throw new Error(result.error || "Failed to insert message.");
+    }
+
+    console.log("Success response from Next.js API:", result);
+    return result;
+  } catch (error) {
+    console.error("Error inserting message:", error);
+    return null;
+  }
+}
+
+export async function fetchMessages() {
+  try {
+    const response = await fetch("/api/message/getMessages", {
+      method: "GET",
+      credentials: "include",
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching messages:", error);
+    return null;
+  }
+}
+

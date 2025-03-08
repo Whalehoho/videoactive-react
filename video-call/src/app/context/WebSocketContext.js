@@ -1,8 +1,8 @@
 "use client"; // Ensure it's a client component
 
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, use, useContext, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { fetchUser, fetchAuthToken } from "../services/api";
+import { fetchUser, fetchAuthToken, fetchMessages } from "../services/api";
 
 
 const WebSocketContext = createContext(null);
@@ -45,6 +45,19 @@ export const WebSocketProvider = ({ children }) => {
       };
       fetchToken();
     }, [clientId]);
+
+  
+    useEffect(() => {
+      // Fetch messages
+      const fetchMessagesData = async () => {
+        if (!authToken) return;
+        await fetchMessages().then((data) => {
+          console.log("Messages fetched: ", data);
+          setMessageHistory(data.messages.map((message) => ({ sender: message.senderId, receiver: message.receiverId, senderName: message.senderName, message: message.messageText, createdAt: message.createdAt })));
+        });
+      };
+      fetchMessagesData();
+    }, [authToken]);
 
 
 
@@ -182,7 +195,7 @@ export const WebSocketProvider = ({ children }) => {
             break;
         case 'instant-message':
             console.log("Instant message received from:", message.from);
-            setMessageHistory(prevMessages => [...prevMessages, { sender: message.from, senderName: message.signalData.senderName, message: message.signalData.content, createdAt: message.signalData.createdAt }]);
+            setMessageHistory(prevMessages => [...prevMessages, { sender: message.from, receiver: message.to, senderName: message.signalData.senderName, message: message.signalData.content, createdAt: message.signalData.createdAt }]);
             break;
         default:
             console.warn("Unknown signal type: ", message.signalType);
