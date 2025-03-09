@@ -107,12 +107,13 @@ export default function ConnectionPage() {
     if (!answerData) {
       return;
     }
+    console.log("Got answer data?", answerData)
     const handleAnswer = async (message) => {
       await peerRef.current.setRemoteDescription(new RTCSessionDescription(message))
         .catch(error => {
             console.error("Error setting remote description: ", error);
         });
-        processQueuedCandidates(); // Add ICE candidates that were stored earlier
+        await processQueuedCandidates(); // Add ICE candidates that were stored earlier
     };
     console.log("Answer signal data: ", answerData.signalData);
     handleAnswer(answerData.signalData);
@@ -157,16 +158,25 @@ export default function ConnectionPage() {
   }, [iceCandidateData]);
   
   // Process queued ICE candidates after setting remote description
-  const processQueuedCandidates = () => {
+  const processQueuedCandidates = async () => {
     if (!peerRef.current || !peerRef.current.remoteDescription) {
       console.warn("Cannot process ICE candidates: Remote description not set.");
       return;
     }
+
+    if(candidateQueue.current.length <= 0) {
+      console.log("No ICE candidate in queue");
+    }
   
     while (candidateQueue.current.length > 0) {
+      var i = 0;
       const candidate = candidateQueue.current.shift();
       peerRef.current.addIceCandidate(new RTCIceCandidate(candidate))
-        .then(() => console.log("Queued ICE candidate added."))
+        .then(() => 
+        { 
+          console.log(++i)
+        }
+        )
         .catch(error => console.error("Error adding queued ICE candidate:", error));
     }
   };
@@ -202,7 +212,7 @@ export default function ConnectionPage() {
       await createPeerConnection();
       console.log("Setting remote description with offer data: ", remoteOfferData);
       await peerRef.current.setRemoteDescription(new RTCSessionDescription(remoteOfferData));
-      processQueuedCandidates(); // Add ICE candidates that were stored earlier
+      await processQueuedCandidates(); // Add ICE candidates that were stored earlier
       await createAnswer();
     } catch (error) {
       console.error(error);
@@ -222,8 +232,12 @@ export default function ConnectionPage() {
     setTargetClientId(null);
     targetClientIdRef.current = null;
     setOfferData(null);
+    setIceCandidateData(null);
+    candidateQueue.current = [];
 
     if(peerRef.current) {
+      peerRef.current.ontrack = null;
+      peerRef.current.onicecandidate = null;
       peerRef.current.close();
       peerRef.current = null;
     }
@@ -236,12 +250,9 @@ export default function ConnectionPage() {
       }
     }
 
-    if (remoteStreamRef.current) {
-        remoteStreamRef.current.getTracks().forEach(track => track.stop());
-        remoteStreamRef.current = null;
-        if(remoteVideoRef.current && remoteVideoRef.current.srcObject) {
-            remoteVideoRef.current.srcObject = null;
-        }
+    if (remoteVideoRef.current && remoteVideoRef.current.srcObject) {
+      remoteVideoRef.current.srcObject.getTracks().forEach(track => track.stop());
+      remoteVideoRef.current.srcObject = null;
     }
 
 
@@ -273,6 +284,11 @@ export default function ConnectionPage() {
         await getLocalMedia();
     }
 
+    if (peerRef.current) {
+      peerRef.current.close();
+      peerRef.current = null;
+    }
+
     peerRef.current = new RTCPeerConnection(iceServers);
 
     localStreamRef.current.getTracks().forEach(track => {
@@ -282,43 +298,50 @@ export default function ConnectionPage() {
      // Debugging logs
      console.log("Local tracks added: ", localStreamRef.current.getTracks());
 
-    peerRef.current.ontrack = (event) => {
-        const remoteStream = event.streams[0];
-        const videoTracks = remoteStream.getVideoTracks();
+     peerRef.current.ontrack = (event) => {
+      const remoteStream = event.streams[0];
 
-        console.log("Remote stream received with tracks: ", videoTracks);
+      console.log("Incoming remote stream:", event.streams[0])
+      console.log("Check stream tracks:", remoteStream.getTracks())
+      console.log("Check video tracks:", remoteStream.getVideoTracks())
 
-        if (videoTracks.length > 0) {
-            remoteStreamRef.current = remoteStream;
-            remoteVideoRef.current.srcObject = remoteStream;
-        } else {
-            console.warn("No video tracks found in remote stream");
+      // Force Video Rendering by Restarting Track
+      // if(remoteStream.getVideoTracks()){
+      //   remoteStream.getVideoTracks().forEach(track => {
+      //     track.enabled = false;
+      //     setTimeout(() => (track.enabled = true), 500);
+      //   });
+        
+      // }
+    
+      // Avoid setting the srcObject multiple times
+      if (!remoteVideoRef.current.srcObject || remoteVideoRef.current.srcObject !== remoteStream) {
+        remoteStreamRef.current = remoteStream;
+        remoteVideoRef.current.srcObject = remoteStream;
+        console.log("Setting up remote video with remote stream")
+      }
+
+    
+      // Delay playing the video slightly
+      setTimeout(() => {
+        console.log("Remote video Status:", remoteVideoRef.current.readyState);
+        if (remoteVideoRef.current.paused || remoteVideoRef.current.ended) {
+          remoteVideoRef.current.play().then(
+            () => {
+              console.log("Playing video")
+            }
+          ).catch(error => {
+            console.error("Error playing remote video:", error);
+          });
         }
-
-        console.log("Is video playing? ", remoteVideoRef.current.paused);
-
-        // Check if the remote stream is already assigned
-        if(remoteVideoRef.current.srcObject !== remoteStream) {
-            remoteVideoRef.current.srcObject = remoteStream;
-            console.log("Remote stream assigned to video element.");
-            console.log("Is video playing? ", remoteVideoRef.current.paused);
-        }
-
-        // Now, attempt to play the video
-        if(remoteVideoRef.current.paused || remoteVideoRef.current.ended) {
-            remoteVideoRef.current.play().then(() => {
-                console.log("Remote video is playing.");
-            }).catch((error) => {
-                console.error("Error playing remote video: ", error);
-            });
-        }
+      }, 500); // Add slight delay to allow proper loading
     };
 
-    peerRef.current.onicecandidate = (event) => {
-        if (event.candidate) {
-            console.log("Sending ICE candidate to peer: ", event.candidate);
-            sendSignalingMessage('ice-candidate', targetClientId, clientId, event.candidate);
-        }
+    peerRef.current.onicecandidate = (event) => { // When available ice candidate is found
+      if (event.candidate) {
+        // console.log("Sending ICE candidate to peer: ", event.candidate);
+        sendSignalingMessage('ice-candidate', targetClientId, clientId, event.candidate);
+      }
     };
   };
 
@@ -335,6 +358,8 @@ export default function ConnectionPage() {
         await peerRef.current.setLocalDescription(offer);
         console.log("Offer created: ", offer);
         sendSignalingMessage('offer', targetClientId, clientId, offer);
+        // Sleep a bit to ensure callee have enuf time to set up peer connection
+        await new Promise((resolve) => setTimeout(resolve, 3000));
     } catch (error) {
         console.error("Error creating offer: ", error);
     }
@@ -557,12 +582,21 @@ export default function ConnectionPage() {
                 <ResizableBox
                   width={800}
                   height={500}
-                  minConstraints={[800, 500]}
+                  minConstraints={[600, 300]}
                   maxConstraints={[1500, 700]}
                   className="rounded-lg"
                   resizeHandles={["ne"]}
                 >
-                  <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
+                  <video 
+                    ref={remoteVideoRef} 
+                    autoPlay 
+                    playsInline 
+                    className="relative z-10 w-full h-full object-cover" 
+                  />
+                  
+      <p className="absolute z-0 inset-0 flex items-center justify-center text-lg text-gray-700">
+        Receiving media from peer...
+      </p>
                 </ResizableBox>
               </div>
               <button

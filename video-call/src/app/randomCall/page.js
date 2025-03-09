@@ -133,8 +133,8 @@ export default function ConnectionPage() {
     setIsCaller(false);
     setOfferData(null);
     setAnswerData(null);
-  setIceCandidateData(null);
-  candidateQueue.current = [];
+    setIceCandidateData(null);
+    candidateQueue.current = [];
 
     if (peerRef.current) {
       peerRef.current.ontrack = null;
@@ -541,13 +541,9 @@ export default function ConnectionPage() {
 
         {/* Right Section (Remote Video) */}
         <div className="flex-1 flex items-end justify-center relative">
-        <ResizableBox
-          width={600}
-          height={500}
-          minConstraints={[500, 500]}
-          maxConstraints={[800, 890]}
-          className="h-full flex-1 flex items-center justify-center rounded-lg border-0 border-gray-700"
-          resizeHandles={["nw"]}
+        <div
+          className="w-full h-full flex-1 flex items-center justify-center rounded-lg border-0 border-gray-700"
+          // resizeHandles={["nw"]}
         >
 
           {/* Video remains positioned normally inside ResizableBox */}
@@ -565,14 +561,14 @@ export default function ConnectionPage() {
 
     
 
-        </ResizableBox>
+        </div>
         
         </div>
 
   
 
         {/* Local Video in Bottom Left Corner */}
-        <div className="absolute bottom-0 left-4">
+        <div className="absolute z-20 bottom-0 left-4">
         <ResizableBox
           width={250}
           height={160}
@@ -611,13 +607,17 @@ export default function ConnectionPage() {
           </>
         )}
       </div>
-      {/* Modal for Contact Request */}
-      <Modal
-        isOpen={isModalOpen}
-        onClose={handleModalClose}
-        onConfirm={handleModalConfirm}
-        message={`You have a contact request from ${pendingFriendId}. Do you accept?`}
-      />
+      {isModalOpen && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+        <Modal
+          isOpen={isModalOpen}
+          onClose={handleModalClose}
+          onConfirm={handleModalConfirm}
+          message={`You have a contact request from ${pendingFriendId}. Do you accept?`}
+        />
+      </div>
+    )}
+      
     </div>
   );
 }
