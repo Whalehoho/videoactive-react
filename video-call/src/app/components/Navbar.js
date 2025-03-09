@@ -10,7 +10,8 @@ export default function Navbar({ activePage, user, onLogout }) {
   const hasIncomingCalls = incomingCalls.length > 0;
 
   const handleUserLogout = async () => {
-    await handleLogout();
+    localStorage.removeItem("authToken");
+    // await handleLogout();
     onLogout(); // ✅ Trigger re-fetch in NavbarSwitcher
     router.push("/"); // Redirect to home after logout
   };

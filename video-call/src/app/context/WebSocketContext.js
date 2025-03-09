@@ -38,10 +38,12 @@ export const WebSocketProvider = ({ children }) => {
       if (!clientId || clientId === "DefaultClient") return;
       const fetchToken = async () => {
         if (!clientId || clientId === "DefaultClient") return;
-        await fetchAuthToken().then((data) => {
-          console.log("Auth token fetched: ", data);
-          setAuthToken(data);
-        });
+        // await fetchAuthToken().then((data) => {
+        //   console.log("Auth token fetched: ", data);
+        //   setAuthToken(data);
+        // });
+        const token = localStorage.getItem("authToken");
+        setAuthToken(token);
       };
       fetchToken();
     }, [clientId]);

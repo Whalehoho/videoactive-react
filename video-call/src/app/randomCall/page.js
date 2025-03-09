@@ -56,10 +56,12 @@ export default function ConnectionPage() {
   useEffect(() => {
     if (!user) return;
     const fetchToken = async () => {
-      await fetchAuthToken().then((data) => {
-        console.log("Auth token fetched: ", data);
-        setAuthToken(data);
-      });
+      // await fetchAuthToken().then((data) => {
+      //   console.log("Auth token fetched: ", data);
+      //   setAuthToken(data);
+      // });
+      const token = localStorage.getItem("authToken");
+      setAuthToken(token);
     };
     fetchToken();
   }, [user]);
@@ -450,7 +452,7 @@ export default function ConnectionPage() {
           className="h-full flex-1 flex items-center justify-center rounded-lg border-0 border-gray-700"
           resizeHandles={["nw"]}
         >
-          <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover rounded-lg" />
+          <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full rounded-lg" />
         </ResizableBox>
         </div>
 
