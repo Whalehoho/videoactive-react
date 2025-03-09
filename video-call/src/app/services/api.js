@@ -29,6 +29,7 @@ export async function handleLogout() { //this function will handle logout
     method: "POST",
     credentials: "include", // ✅ Include cookies in request to tell backend it's a logged-in user
   });
+  localStorage.removeItem("authToken"); // Remove token
 }
 
 export async function fetchUser() {// this function will validate token and return user data and will be used in every page for authentication
@@ -40,13 +41,14 @@ export async function fetchUser() {// this function will validate token and retu
       headers: {
         Authorization: `Bearer ${authToken}`,
       },
+      
     });
     if (!response.ok) {
       return null;
     }
     return await response.json()
   } catch (error) {
-    console.error("Error fetching user:", error);
+    // console.error("Error fetching user:", error);
     return null;
   }
 }

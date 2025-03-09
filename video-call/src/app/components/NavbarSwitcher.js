@@ -18,10 +18,10 @@ export default function NavbarSwitcher() {
     setLoading(false);
   }, []);
 
-  // ✅ Run on mount and every time checkUser changes
+  // ✅ Run on mount + re-run when pathname changes
   useEffect(() => {
     checkUser();
-  }, [checkUser]);
+  }, [pathname]); // ✅ Re-run checkUser() on navigation
 
   if (loading) return null; // Prevent flickering while loading
 
