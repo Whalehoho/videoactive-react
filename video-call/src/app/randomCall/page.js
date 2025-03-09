@@ -6,6 +6,7 @@ import { fetchUser, fetchAuthToken, acceptContactRequest } from "../services/api
 import Modal from "../components/Modal"; // Import the Modal component
 import { ResizableBox } from 'react-resizable';
 import 'react-resizable/css/styles.css'; // Import the styles for the resizable component
+import { resolve } from "styled-jsx/css";
 
 export default function ConnectionPage() {
   const socketRef = useRef(null);
@@ -23,6 +24,8 @@ export default function ConnectionPage() {
   const remoteVideoRef = useRef(null);
   const localStreamRef = useRef(null);
   const remoteStreamRef = useRef(null);
+  const [iceCandidateData, setIceCandidateData] = useState(null);
+  const candidateQueue = useRef([]);
 
   const router = useRouter();
   const [user, setUser] = useState(null);
@@ -49,7 +52,7 @@ export default function ConnectionPage() {
         setUser(data.user);
       }
       setLoading(false);
-      console.log(user);
+      // console.log(user);
     });
   }, []);
 
@@ -74,6 +77,7 @@ export default function ConnectionPage() {
     };
   }, []); // Empty dependency array means this runs only on mount/unmount
 
+
   const startCall = async () => {
     if (!authToken) {
       console.error("Auth token not available.");
@@ -81,11 +85,11 @@ export default function ConnectionPage() {
     }
     try {
       // Check if a call is already in progress
-      const callStatus = localStorage.getItem('callStatus');
-      if (callStatus === 'in-progress') {
-        alert("A call is already in progress. Please try again later.");
-        return;
-      }
+      // const callStatus = localStorage.getItem('callStatus');
+      // if (callStatus === 'in-progress') {
+      //   alert("A call is already in progress. Please try again later.");
+      //   return;
+      // }
 
       // Set call status to in-progress
       localStorage.setItem('callStatus', 'in-progress');
@@ -126,11 +130,15 @@ export default function ConnectionPage() {
   const hangUp = () => {
     setStatus("disconnected");
     setContactStatus("none");
-    setPairID(null);
     setIsCaller(false);
     setOfferData(null);
+    setAnswerData(null);
+  setIceCandidateData(null);
+  candidateQueue.current = [];
 
     if (peerRef.current) {
+      peerRef.current.ontrack = null;
+      peerRef.current.onicecandidate = null;
       peerRef.current.close();
       peerRef.current = null;
     }
@@ -143,12 +151,9 @@ export default function ConnectionPage() {
       }
     }
 
-    if (remoteStreamRef.current) {
-      remoteStreamRef.current.getTracks().forEach(track => track.stop());
-      remoteStreamRef.current = null;
-      if (remoteVideoRef.current && remoteVideoRef.current.srcObject) {
-        remoteVideoRef.current.srcObject = null;
-      }
+    if (remoteVideoRef.current && remoteVideoRef.current.srcObject) {
+      remoteVideoRef.current.srcObject.getTracks().forEach(track => track.stop());
+      remoteVideoRef.current.srcObject = null;
     }
 
     if (socketRef.current) {
@@ -159,11 +164,21 @@ export default function ConnectionPage() {
         };
         socketRef.current.send(JSON.stringify(message));
       }
+      setPairID(null);
+      socketRef.current.onopen = null;
+      socketRef.current.onmessage = null;
+      socketRef.current.onclose = null;
       socketRef.current.close();
+      socketRef.current = null;
     }
 
     // Reset call status
     localStorage.setItem('callStatus', 'disconnected');
+    // Reload the page (hard reload), do this avoid all bugs=_=
+  // window.location.reload();
+
+  //print all related things to check if the peer connection is fully reset
+
   };
 
   // Handle incoming WebSocket messages
@@ -189,6 +204,7 @@ export default function ConnectionPage() {
   const handleMatchFound = async (message) => {
     console.log("Match found with pair ID: ", message.pairId);
     setPairID(message.pairId);
+    console.log("My role:", message.role);
     setIsCaller(message.role === 'caller');
     setStatus("connected");
 
@@ -205,6 +221,11 @@ export default function ConnectionPage() {
       await getLocalMedia();
     }
 
+    if (peerRef.current) {
+      peerRef.current.close();
+      peerRef.current = null;
+    }
+
     peerRef.current = new RTCPeerConnection(iceServers);
 
     localStreamRef.current.getTracks().forEach(track => {
@@ -213,39 +234,46 @@ export default function ConnectionPage() {
 
     peerRef.current.ontrack = (event) => {
       const remoteStream = event.streams[0];
-      const videoTracks = remoteStream.getVideoTracks();
 
-      console.log("Remote stream received with tracks: ", videoTracks);
+      console.log("Incoming remote stream:", event.streams[0])
+      console.log("Check stream tracks:", remoteStream.getTracks())
+      console.log("Check video tracks:", remoteStream.getVideoTracks())
 
-      if (videoTracks.length > 0) {
+      // Force Video Rendering by Restarting Track
+      // if(remoteStream.getVideoTracks()){
+      //   remoteStream.getVideoTracks().forEach(track => {
+      //     track.enabled = false;
+      //     setTimeout(() => (track.enabled = true), 500);
+      //   });
+        
+      // }
+    
+      // Avoid setting the srcObject multiple times
+      if (!remoteVideoRef.current.srcObject || remoteVideoRef.current.srcObject !== remoteStream) {
         remoteStreamRef.current = remoteStream;
         remoteVideoRef.current.srcObject = remoteStream;
-      } else {
-        console.warn("No video tracks found in remote stream");
+        console.log("Setting up remote video with remote stream")
       }
 
-      console.log("Is video playing? ", remoteVideoRef.current.paused);
-
-      // Check if the remote stream is already assigned
-      if (remoteVideoRef.current.srcObject !== remoteStream) {
-        remoteVideoRef.current.srcObject = remoteStream;
-        console.log("Remote stream assigned to video element.");
-        console.log("Is video playing? ", remoteVideoRef.current.paused);
-      }
-
-      // Now, attempt to play the video
-      if (remoteVideoRef.current.paused || remoteVideoRef.current.ended) {
-        remoteVideoRef.current.play().then(() => {
-          console.log("Remote video is playing.");
-        }).catch((error) => {
-          console.error("Error playing remote video: ", error);
-        });
-      }
+    
+      // Delay playing the video slightly
+      setTimeout(() => {
+        console.log("Remote video Status:", remoteVideoRef.current.readyState);
+        if (remoteVideoRef.current.paused || remoteVideoRef.current.ended) {
+          remoteVideoRef.current.play().then(
+            () => {
+              console.log("Playing video")
+            }
+          ).catch(error => {
+            console.error("Error playing remote video:", error);
+          });
+        }
+      }, 500); // Add slight delay to allow proper loading
     };
 
     peerRef.current.onicecandidate = (event) => { // When available ice candidate is found
       if (event.candidate) {
-        console.log("Sending ICE candidate to peer: ", event.candidate);
+        // console.log("Sending ICE candidate to peer: ", event.candidate);
         sendSignalingMessage('ice-candidate', event.candidate);
       }
     };
@@ -253,16 +281,18 @@ export default function ConnectionPage() {
 
   // Create an offer
   const createOffer = async () => {
-    console.log('socketRef: ', socketRef);
+    // console.log('socketRef: ', socketRef);
     try {
       if (!peerRef.current) {
-        createPeerConnection(); // Ensure peerRef.current is set
+        await createPeerConnection(); // Ensure peerRef.current is set
       }
-      console.log("peerRef.current: ", peerRef.current);
+      // console.log("peerRef.current: ", peerRef.current);
       const offer = await peerRef.current.createOffer();
       await peerRef.current.setLocalDescription(offer);
-      console.log("Offer created: ", offer);
+      // console.log("Offer created: ", offer);
       sendSignalingMessage('offer', offer);
+      // Sleep a bit to ensure callee have enuf time to set up peer connection
+      await new Promise((resolve) => setTimeout(resolve, 3000));
     } catch (error) {
       console.error("Error creating offer: ", error);
     }
@@ -278,7 +308,7 @@ export default function ConnectionPage() {
         });
         localStreamRef.current = stream;
         localVideoRef.current.srcObject = stream;
-        console.log("Local media stream obtained.", stream);
+        // console.log("Local media stream obtained.", stream);
       }
       return localStreamRef.current;
     } catch (error) {
@@ -292,7 +322,7 @@ export default function ConnectionPage() {
     const message = {
       type: 'signal',
       pairId: pairId,
-      role: isCaller ? 'caller' : 'callee',
+      // role: isCaller===true ? 'caller' : 'callee',
       signalType: type,
       signalData: signal,
     };
@@ -315,13 +345,7 @@ export default function ConnectionPage() {
         handleAnswer(message.signalData);
         break;
       case 'ice-candidate':
-        // Add candidate immediately if possible
-        if (!peerRef || !peerRef.current) {
-          peerRef.current = new RTCPeerConnection(iceServers);
-        }
-        peerRef.current.addIceCandidate(new RTCIceCandidate(message.signalData)).catch(error => {
-          console.error("Error adding ICE candidate:", error);
-        });
+        setIceCandidateData(message);
         break;
       case 'contact-request':
         handleContactRequest(message.signalData);
@@ -332,6 +356,60 @@ export default function ConnectionPage() {
       default:
         console.warn("Unknown signal type: ", message.signalType);
         break;
+    }
+  };
+
+  //When receiving an incoming ICE candidate
+  useEffect(() => {
+    if (!iceCandidateData) {
+      return;
+    }
+  
+    const handleIceCandidate = async (message) => {
+      if (!peerRef.current) {
+        console.warn("Peer connection not initialized. ICE candidate queued.");
+        candidateQueue.current.push(message.signalData); // Queue the candidate
+        return;
+      }
+  
+      else if (!peerRef.current.remoteDescription) {
+        console.warn("Remote description not set yet. ICE candidate queued.");
+        candidateQueue.current.push(message.signalData); // Queue the candidate
+        return;
+      }
+  
+      try {
+        await peerRef.current.addIceCandidate(new RTCIceCandidate(message.signalData));
+        // console.log("ICE candidate added successfully.");
+      } catch (error) {
+        console.error("Error adding ICE candidate:", error);
+      }
+    };
+  
+    handleIceCandidate(iceCandidateData);
+  }, [iceCandidateData]);
+  
+  // Process queued ICE candidates after setting remote description
+  const processQueuedCandidates = async () => {
+    if (!peerRef.current || !peerRef.current.remoteDescription) {
+      console.warn("Cannot process ICE candidates: Remote description not set.");
+      return;
+    }
+
+    if(candidateQueue.current.length <= 0) {
+      console.log("No ICE candidate in queue");
+    }
+  
+    while (candidateQueue.current.length > 0) {
+      var i = 0;
+      const candidate = candidateQueue.current.shift();
+      peerRef.current.addIceCandidate(new RTCIceCandidate(candidate))
+        .then(() => 
+        { 
+          console.log(++i)
+        }
+        )
+        .catch(error => console.error("Error adding queued ICE candidate:", error));
     }
   };
 
@@ -351,10 +429,11 @@ export default function ConnectionPage() {
   // Process offer
   const processOffer = async (offerData) => {
     await getLocalMedia();
-    createPeerConnection();
+    await createPeerConnection();
     console.log("Setting remote description with offer data: ", offerData);
     await peerRef.current.setRemoteDescription(offerData);
-    createAnswer();
+    await processQueuedCandidates(); 
+    await createAnswer();
   };
 
   // Create an answer
@@ -369,14 +448,32 @@ export default function ConnectionPage() {
     }
   };
 
+  //When receiving an incoming answer
+  useEffect(() => {
+    if (!answerData) {
+      return;
+    }
+    const handleAnswer = async (message) => {
+      await peerRef.current.setRemoteDescription(new RTCSessionDescription(message))
+        .catch(error => {
+            console.error("Error setting remote description: ", error);
+        });
+        await processQueuedCandidates(); // Add ICE candidates that were stored earlier
+    };
+    console.log("Answer signal data: ", answerData.signalData);
+    handleAnswer(answerData.signalData);
+  }, [answerData]);
+
   // Handle an incoming answer
   const handleAnswer = async (message) => {
     console.log("Answer received: ", message);
-    setAnswerData(message);
+    // setAnswerData(message);
+    console.log("Setting remote description with answer data: ", message);
     await peerRef.current.setRemoteDescription(new RTCSessionDescription(message))
       .catch(error => {
         console.error("Error setting remote description: ", error);
       });
+      await processQueuedCandidates();
   };
 
   // Handle contact request
@@ -446,15 +543,33 @@ export default function ConnectionPage() {
         <div className="flex-1 flex items-end justify-center relative">
         <ResizableBox
           width={600}
-          height={690}
-          minConstraints={[600, 690]}
-          maxConstraints={[600, 690]}
+          height={500}
+          minConstraints={[500, 500]}
+          maxConstraints={[800, 890]}
           className="h-full flex-1 flex items-center justify-center rounded-lg border-0 border-gray-700"
           resizeHandles={["nw"]}
         >
-          <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full rounded-lg" />
+
+          {/* Video remains positioned normally inside ResizableBox */}
+    <video
+      ref={remoteVideoRef}
+      autoPlay
+      playsInline
+      className="relative z-10 w-full h-full rounded-lg"
+    />
+          {status === "connected" && (
+      <p className="absolute z-0 inset-0 flex items-center justify-center text-lg text-gray-700">
+        Receiving media from peer...
+      </p>
+    )}
+
+    
+
         </ResizableBox>
+        
         </div>
+
+  
 
         {/* Local Video in Bottom Left Corner */}
         <div className="absolute bottom-0 left-4">
