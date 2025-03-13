@@ -6,6 +6,7 @@ import { fetchUser, fetchContacts, insertMessage } from "../services/api"; // âœ
 import { useWebSocket } from '../context/WebSocketContext'; // âœ… Use WebSocket context
 import { ResizableBox } from 'react-resizable';
 import 'react-resizable/css/styles.css'; // Import the styles for the resizable component
+import { logStartCall, logEndCall } from "../services/api";
 
 export default function ConnectionPage() {
   const { 
@@ -214,16 +215,24 @@ export default function ConnectionPage() {
       await peerRef.current.setRemoteDescription(new RTCSessionDescription(remoteOfferData));
       await processQueuedCandidates(); // Add ICE candidates that were stored earlier
       await createAnswer();
+
+      // Log the call start
+      // console.log("Client ID: ", clientId, " Target Client ID: ", targetClientId);
+      await logStartCall(clientId, targetClientId, "direct");
+
+
     } catch (error) {
       console.error(error);
     }
   };
 
-  const hangUp = () => {
+  const hangUp = async () => {
     if(statusRef.current === "idle") {
       console.log("No active call to hang up.");
       return;
     }
+    // Log the call end
+    await logEndCall(clientId, targetClientId);
     console.log("Hanging up call...");
     setStatus("idle");
     statusRef.current = "idle";
@@ -255,6 +264,7 @@ export default function ConnectionPage() {
       remoteVideoRef.current.srcObject = null;
     }
 
+    
 
   };
 

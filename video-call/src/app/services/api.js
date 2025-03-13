@@ -258,3 +258,56 @@ export async function fetchMessages() {
   }
 }
 
+export async function logStartCall(callerId, calleeId, callType) {
+  try{
+    const authToken = localStorage.getItem("authToken");
+    console.log("CallerId: ", callerId);
+    console.log("CalleeId: ", calleeId);
+    const response = await fetch("/api/logs/startCall", {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({ callerId, calleeId, callType }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Invalid session");
+    }
+
+    return response;
+  }
+  catch (error) {
+    console.error("User fetch error:", error);
+    return null;
+  }
+}
+
+export async function logEndCall(callerId, calleeId) {
+  try{
+    const authToken = localStorage.getItem("authToken");
+    const response = await fetch("/api/logs/endCall", {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({ callerId, calleeId }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Invalid session");
+    }
+
+    return response;
+  }
+  catch (error) {
+    console.error("User fetch error:", error);
+    return null;
+  }
+}
+
+
