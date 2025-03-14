@@ -1,13 +1,15 @@
 "use client"; // Ensure it's a client component
 
-import { createContext, use, useContext, useEffect, useRef, useState } from "react";
+import { createContext, use, useContext, useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { fetchUser, fetchAuthToken, fetchMessages } from "../services/api";
+import { usePathname } from "next/navigation";
 
 
 const WebSocketContext = createContext(null);
 
 export const WebSocketProvider = ({ children }) => {
+  const pathname = usePathname(); // ✅ Get current path
   const router = useRouter();
   const socketRef = useRef(null);
   const [authToken, setAuthToken] = useState(null);
@@ -22,17 +24,19 @@ export const WebSocketProvider = ({ children }) => {
   // messageHistory would be an array of objects with sender and message properties, sorted by timestamp
   // Example: [{ sender: "User1", message: "Hi", createdAt: "2022-01-01T12:00:00Z" }, ...]
 
-  useEffect(() => {
-      fetchUser().then((data) => {
-        if (!data) {
-          router.push("/auth");
-        } else {
-          console.log("User data: ", data);
-          setClientId(data.user.uid);
-        }
-      });
-      
+  
+
+    // ✅ Function to refresh user state
+    const checkUser = useCallback(async () => {
+      const userData = await fetchUser();
+      setClientId(userData.user.uid);
     }, []);
+
+    // ✅ Run on mount + re-run when pathname changes
+    useEffect(() => {
+      checkUser();
+    }, [pathname]); // ✅ Re-run checkUser() on navigation
+
 
     useEffect(() => {
       if (!clientId || clientId === "DefaultClient") return;
