@@ -36,6 +36,12 @@ export default function ProfilePage() {
   const handleImageChange = (event) => {
     const file = event.target.files[0];
     if (file) {
+      // ✅ Check if file type is PNG or JPEG
+      const validTypes = ["image/png", "image/jpeg", "image/jpg"];
+      if (!validTypes.includes(file.type)) {
+        alert("Only PNG and JPEG files are allowed.");
+        return;
+      }
       const imageURL = URL.createObjectURL(file);
       setImage(imageURL); // Show preview
       setImageFile(file); // Store file for upload
@@ -47,7 +53,7 @@ export default function ProfilePage() {
     setUpdating(true);
   
     if (
-      name === user.name &&
+      name === user.username &&
       gender === user.gender &&
       description === user.description &&
       !imageFile
@@ -71,15 +77,15 @@ export default function ProfilePage() {
       }
     }
   
-    const response = await updateUser({ name, gender, description, image: imageUrl });
-
+    const response = await updateUser({ username : name, gender, description, image: imageUrl });
+    console.log("cur "+name);
     if (response?.message === "success" && response.user) {
+      console.log("response.user: ", response.user);
       alert("Profile updated successfully!");
       setUser(response.user); // ✅ Update user directly from response
-      setName(response.user.name || "");
+      setName(response.user.username || "");
       setGender(response.user.gender ?? true); 
       setDescription(response.user.description || "");
-      setImage(response.user.image || null);
     } else {
       alert("Failed to update profile.");
     }
