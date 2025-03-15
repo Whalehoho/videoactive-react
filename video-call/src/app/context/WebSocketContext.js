@@ -8,6 +8,10 @@ import { usePathname } from "next/navigation";
 
 const WebSocketContext = createContext(null);
 
+// WebSocket Context Provider is to establish a connection with the WebSocket server since user login. To:
+// 1. Notify server of user's online status
+// 2. Receive incoming calls
+// 3. Send and receive signaling messages for Direct calls
 export const WebSocketProvider = ({ children }) => {
   const pathname = usePathname(); // ✅ Get current path
   const router = useRouter();
@@ -26,26 +30,22 @@ export const WebSocketProvider = ({ children }) => {
 
   
 
-    // ✅ Function to refresh user state
+    // Function to refresh user state
     const checkUser = useCallback(async () => {
       const userData = await fetchUser();
       setClientId(userData.user.uid);
     }, []);
 
-    // ✅ Run on mount + re-run when pathname changes
+    // Re-run checkUser() on navigation (after login)
     useEffect(() => {
       checkUser();
-    }, [pathname]); // ✅ Re-run checkUser() on navigation
+    }, [pathname]);
 
 
     useEffect(() => {
       if (!clientId || clientId === "DefaultClient") return;
       const fetchToken = async () => {
         if (!clientId || clientId === "DefaultClient") return;
-        // await fetchAuthToken().then((data) => {
-        //   console.log("Auth token fetched: ", data);
-        //   setAuthToken(data);
-        // });
         const token = localStorage.getItem("authToken");
         setAuthToken(token);
       };
@@ -59,7 +59,15 @@ export const WebSocketProvider = ({ children }) => {
         if (!authToken) return;
         await fetchMessages().then((data) => {
           console.log("Messages fetched: ", data);
-          setMessageHistory(data.messages.map((message) => ({ sender: message.senderId, receiver: message.receiverId, senderName: message.senderName, message: message.messageText, createdAt: message.createdAt })));
+          setMessageHistory(data.messages.map((message) => ( // Push fetched messages to messageHistory
+            { 
+              sender: message.senderId, 
+              receiver: message.receiverId, 
+              senderName: message.senderName, 
+              message: message.messageText, 
+              createdAt: message.createdAt 
+            }
+          )));
         });
       };
       fetchMessagesData();
@@ -76,9 +84,10 @@ export const WebSocketProvider = ({ children }) => {
     try {
 
       console.log("authToken: ", authToken);
+
       const socketConnection = new WebSocket(
         `${process.env.NEXT_PUBLIC_BACKEND_WEBSOCKET_URL}/ws/direct?authToken=${authToken}`
-      );
+      ); // Build connection with websocket server
 
       socketConnection.onopen = () => {
         console.log("Connected to WebSocket server");
@@ -107,54 +116,55 @@ export const WebSocketProvider = ({ children }) => {
       if (socketRef.current) {
         socketRef.current.close();
       }
-    };
+    }; // Close the connection when the component unmounts
   }, [clientId, authToken]);
 
-  // Handle incoming messages
+  // Handle incoming messages from websocket server
   const handleMessage = (message) => {
     switch (message.type) {
-      case "online-contacts":
-    if (Array.isArray(message.contacts)) {
-      setOnlineContacts((prevContacts) => {
-        // Filter out any undefined values from the previous contacts
-        const filteredContacts = prevContacts.filter(contact => contact);
-        
-        // Merge new contacts, ensuring uniqueness based on contactId
-        const newContacts = message.contacts.filter(newContact =>
-          !filteredContacts.some(contact => String(contact.contactId) === String(newContact.contactId))
-        );
-        
-        return [...filteredContacts, ...newContacts];
-      });
-    }
-    break;
+      case "online-contacts": // User's online contacts
+        if (Array.isArray(message.contacts)) {
+          setOnlineContacts((prevContacts) => {
+            // Filter out any undefined values from the previous contacts
+            const filteredContacts = prevContacts.filter(contact => contact);
+            
+            // Merge new contacts, ensuring uniqueness based on contactId
+            const newContacts = message.contacts.filter(newContact =>
+              !filteredContacts.some(contact => String(contact.contactId) === String(newContact.contactId))
+            );
+            
+            return [...filteredContacts, ...newContacts];
+          });
+        }
+        break;
 
+      case "contact-online": // A contact has come online
+        if (message.contact && message.contact.contactId) {
+          setOnlineContacts((prevContacts) => {
+            // Ensure no undefined values are included
+            const filteredContacts = prevContacts.filter(contact => contact);
+            
+            // Prevent duplicates before adding
+            const contactExists = filteredContacts.some(contact => String(contact.contactId) === String(message.contact.contactId));
+            
+            return contactExists ? filteredContacts : [...filteredContacts, message.contact];
+          });
+        }
+        break;
 
-  case "contact-online":
-    if (message.contact && message.contact.contactId) {
-      setOnlineContacts((prevContacts) => {
-        // Ensure no undefined values are included
-        const filteredContacts = prevContacts.filter(contact => contact);
-        
-        // Prevent duplicates before adding
-        const contactExists = filteredContacts.some(contact => String(contact.contactId) === String(message.contact.contactId));
-        
-        return contactExists ? filteredContacts : [...filteredContacts, message.contact];
-      });
-    }
-    break;
+      case "contact-offline": // A contact has gone offline
+        console.log("Contact offline: ", message.contact);
+        if (message.contact && message.contact.contactId) {
+          setOnlineContacts((prevContacts) =>
+            prevContacts.filter(contact => contact && String(contact.contactId) !== String(message.contact.contactId))
+          );
+        }
+        break;
 
-  case "contact-offline":
-    console.log("Contact offline: ", message.contact);
-    if (message.contact && message.contact.contactId) {
-      setOnlineContacts((prevContacts) =>
-        prevContacts.filter(contact => contact && String(contact.contactId) !== String(message.contact.contactId))
-      );
-    }
-    break;
-      case "signal":
+      case "signal": // Signaling message, used for WebRTC
         handleSignalingMessage(message);
         break;
+
       default:
         console.warn("Unknown message type:", message.type);
         break;
@@ -184,24 +194,35 @@ export const WebSocketProvider = ({ children }) => {
     switch (message.signalType) {
         case 'offer':
             console.log("Incoming call from:", message.from);
-            setIncomingCalls(prevCalls => [...prevCalls, message]); // Add to the queue
+            setIncomingCalls(prevCalls => [...prevCalls, message]); // Add to the list, used to display incoming calls
             break;
         case 'answer':
             console.log("Answer received from:", message.from);
-            setAnswerData(message);
+            setAnswerData(message); // Set answer data, handle at the callee's end (connection/page.js)
             break;
         case 'hang-up':
             console.log("Hang-up received from:", message.from);
-            setIncomingCalls(prevCalls => prevCalls.filter(call => call.from !== message.from)); // Remove from the queue
-            setHangUpData(message);
+            setIncomingCalls(prevCalls => prevCalls.filter(call => call.from !== message.from)); // Remove from the list
+            setHangUpData(message); // Set hang-up data, handle at the callee's end (connection/page.js)
             break;
         case 'ice-candidate':
             console.log("ICE candidate received from:", message.from);
-            setIceCandidateData(message);
+            setIceCandidateData(message); // Set potential network paths for the WebRTC connection
             break;
         case 'instant-message':
             console.log("Instant message received from:", message.from);
-            setMessageHistory(prevMessages => [...prevMessages, { sender: message.from, receiver: message.to, senderName: message.signalData.senderName, message: message.signalData.content, createdAt: message.signalData.createdAt }]);
+            setMessageHistory(prevMessages => 
+              [
+                ...prevMessages, 
+                { 
+                  sender: message.from, 
+                  receiver: message.to, 
+                  senderName: message.signalData.senderName, 
+                  message: message.signalData.content, 
+                  createdAt: message.signalData.createdAt 
+                }
+              ]
+            );
             break;
         default:
             console.warn("Unknown signal type: ", message.signalType);

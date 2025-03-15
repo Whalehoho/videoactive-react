@@ -8,6 +8,7 @@ import { ResizableBox } from 'react-resizable';
 import 'react-resizable/css/styles.css'; // Import the styles for the resizable component
 import { resolve } from "styled-jsx/css";
 
+// Random call does not use WebSocketContext because unlike direct call, we only need to establish a connection when starting a call
 export default function ConnectionPage() {
   const socketRef = useRef(null);
   const [authToken, setAuthToken] = useState(null);
@@ -32,6 +33,10 @@ export default function ConnectionPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
+  // ICE serves help establish a connection between peers by bypassing NAT and firewalls
+  // STUN servers help find the public IP address of a user
+  // TURN servers help relay media if direct connection fails, consumes more bandwidth, and is slower
+  // We use free TURN servers from Xirsys, so calls might fail ocassionally
   const iceServers = {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
@@ -59,10 +64,6 @@ export default function ConnectionPage() {
   useEffect(() => {
     if (!user) return;
     const fetchToken = async () => {
-      // await fetchAuthToken().then((data) => {
-      //   console.log("Auth token fetched: ", data);
-      //   setAuthToken(data);
-      // });
       const token = localStorage.getItem("authToken");
       setAuthToken(token);
     };
@@ -84,24 +85,19 @@ export default function ConnectionPage() {
       return;
     }
     try {
-      // Check if a call is already in progress
-      // const callStatus = localStorage.getItem('callStatus');
-      // if (callStatus === 'in-progress') {
-      //   alert("A call is already in progress. Please try again later.");
-      //   return;
-      // }
-
-      // Set call status to in-progress
+      // 1. Set call status to in-progress
       localStorage.setItem('callStatus', 'in-progress');
       setStatus("searching");
       await getLocalMedia();
 
+      // 2. Establish WebSocket connection
       const socketConnection = new WebSocket(`${process.env.NEXT_PUBLIC_BACKEND_WEBSOCKET_URL}/ws/random?authToken=${authToken}`);
       socketConnection.onopen = () => {
         console.log("Connected to WebSocket server");
         setStatus("searching");
       };
 
+      // 3. Handle incoming messages, the first incoming message should be match-found
       socketConnection.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
@@ -190,7 +186,7 @@ export default function ConnectionPage() {
       case 'signal':
         handleSignalingMessage(message);
         break;
-      case 'peer-disconnected':
+      case 'peer-disconnected': // Peer disconnected, hang up the call
         console.log("Peer disconnected.");
         hangUp();
         break;
@@ -338,19 +334,19 @@ export default function ConnectionPage() {
   const handleSignalingMessage = (message) => {
     console.log("Signal received: ", message);
     switch (message.signalType) {
-      case 'offer':
+      case 'offer': // Incoming WebRTC offer (In random call, websocket server decides who sends offer)
         handleOffer(message.signalData);
         break;
-      case 'answer':
+      case 'answer': // Incoming WebRTC answer
         handleAnswer(message.signalData);
         break;
-      case 'ice-candidate':
+      case 'ice-candidate': // Incoming ICE candidate
         setIceCandidateData(message);
         break;
-      case 'contact-request':
+      case 'contact-request': // Peer wants to add you as a contact
         handleContactRequest(message.signalData);
         break;
-      case 'accept-request':
+      case 'accept-request': // Peer accepted your contact request
         handleAcceptRequest(message.signalData);
         break;
       default:
@@ -366,6 +362,7 @@ export default function ConnectionPage() {
     }
   
     const handleIceCandidate = async (message) => {
+      // Candidate must be added after setting remote description
       if (!peerRef.current) {
         console.warn("Peer connection not initialized. ICE candidate queued.");
         candidateQueue.current.push(message.signalData); // Queue the candidate
@@ -541,28 +538,24 @@ export default function ConnectionPage() {
 
         {/* Right Section (Remote Video) */}
         <div className="flex-1 flex items-end justify-center relative">
-        <div
-          className="w-full h-full flex-1 flex items-center justify-center rounded-lg border-0 border-gray-700"
-          // resizeHandles={["nw"]}
-        >
+          <div
+            className="w-full h-full flex-1 flex items-center justify-center rounded-lg border-0 border-gray-700"
+            // resizeHandles={["nw"]}
+          >
 
-          {/* Video remains positioned normally inside ResizableBox */}
-    <video
-      ref={remoteVideoRef}
-      autoPlay
-      playsInline
-      className="relative z-10 w-full h-full rounded-lg"
-    />
-          {status === "connected" && (
-      <p className="absolute z-0 inset-0 flex items-center justify-center text-lg text-gray-700">
-        Receiving media from peer...
-      </p>
-    )}
-
-    
-
-        </div>
-        
+            {/* Video remains positioned normally inside ResizableBox */}
+            <video
+              ref={remoteVideoRef}
+              autoPlay
+              playsInline
+              className="relative z-10 w-full h-full rounded-lg"
+            />
+                {status === "connected" && (
+                  <p className="absolute z-0 inset-0 flex items-center justify-center text-lg text-gray-700">
+                    Receiving media from peer...
+                  </p>
+                )}
+          </div>
         </div>
 
   

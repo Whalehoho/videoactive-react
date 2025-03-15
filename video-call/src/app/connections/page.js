@@ -20,7 +20,7 @@ export default function ConnectionPage() {
     iceCandidateData, setIceCandidateData,
     sendSignalingMessage,
     messageHistory, setMessageHistory
-  } = useWebSocket();
+  } = useWebSocket(); // Use WebSocket context instead of building a new one when visiting the page
   const [targetClientId, setTargetClientId] = useState(null);
   const targetClientIdRef = useRef(targetClientId);
   const [status, setStatus] = useState("idle");
@@ -41,6 +41,10 @@ export default function ConnectionPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
+  // ICE serves help establish a connection between peers by bypassing NAT and firewalls
+  // STUN servers help find the public IP address of a user
+  // TURN servers help relay media if direct connection fails, consumes more bandwidth, and is slower
+  // We use free TURN servers from Xirsys, so calls might fail ocassionally
   const iceServers = {
     iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
@@ -56,12 +60,10 @@ export default function ConnectionPage() {
   
 
   useEffect(() => {
-    //print online contacts
     console.log("Online contacts: ", onlineContacts);
   }, [onlineContacts]);
 
   useEffect(() => {
-    //print message history
     console.log("Message history: ", messageHistory);
   }, [messageHistory]);
 
@@ -74,16 +76,10 @@ export default function ConnectionPage() {
       }
       setLoading(false);
     });
-    
-    // fetchContacts().then((data) => {
-    //   if (data && data.contacts) {
-    //     setContacts(data.contacts);
-    //   }
-    // }); // Should only fetch online contacts, use websocket instead
   }, []);
 
   useEffect(() => {
-    //fetch contacts
+    //fetch contacts from the server (both online and offline)
     const fetchContactsData = async () => {
       await fetchContacts().then((data) => {
         if (data && data.contacts) {
@@ -135,6 +131,7 @@ export default function ConnectionPage() {
     }
   
     const handleIceCandidate = async (message) => {
+      // Candidate must be added after setting remote description
       if (!peerRef.current) {
         console.warn("Peer connection not initialized. ICE candidate queued.");
         candidateQueue.current.push(message.signalData); // Queue the candidate
@@ -148,6 +145,7 @@ export default function ConnectionPage() {
       }
   
       try {
+        // Add the ICE candidate so that the peer knows how to reach us
         await peerRef.current.addIceCandidate(new RTCIceCandidate(message.signalData));
         console.log("ICE candidate added successfully.");
       } catch (error) {
@@ -188,7 +186,6 @@ export default function ConnectionPage() {
       console.log("Starting call with: ", targetClientId);
       setStatus("calling");
       statusRef.current = "calling";
-      // await getLocalMedia();
       await createPeerConnection();
       await createOffer();
     } catch (error) {
@@ -209,7 +206,6 @@ export default function ConnectionPage() {
         console.error("No offer data found for incoming call.");
         return;
       }
-      // await getLocalMedia();
       await createPeerConnection();
       console.log("Setting remote description with offer data: ", remoteOfferData);
       await peerRef.current.setRemoteDescription(new RTCSessionDescription(remoteOfferData));
