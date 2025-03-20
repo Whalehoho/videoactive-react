@@ -3,7 +3,10 @@ import { NextResponse } from "next/server";
 
 export async function POST(req) {
     try {
-        const authToken = req.headers.get("Authorization")?.split(" ")[1];
+        // const authToken = req.headers.get("Authorization")?.split(" ")[1];
+
+        const cookieStore = await cookies();
+        const authToken = cookieStore.get("AuthToken")?.value;       
 
         if (!authToken) {
             return NextResponse.json({ error: "Missing AuthToken" }, { status: 401 });

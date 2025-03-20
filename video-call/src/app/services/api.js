@@ -3,14 +3,10 @@
 export const loginRedirectUrl = "/api/auth/login"; // will be used in auth page to redirect to google login page
 
 export async function fetchAuthToken() {
-  const authToken = localStorage.getItem("authToken");
   try {
     const response = await fetch("/api/auth/token", {
       method: "GET",
       credentials: "include",
-      headers: {
-        Authorization: `Bearer ${authToken}`,
-      },
     });
 
     if (!response.ok) {
@@ -29,18 +25,14 @@ export async function handleLogout() { //this function will handle logout
     method: "POST",
     credentials: "include", // ✅ Include cookies in request to tell backend it's a logged-in user
   });
-  localStorage.removeItem("authToken"); // Remove token
 }
 
 export async function fetchUser() {// this function will validate token and return user data and will be used in every page for authentication
   try {
-    const authToken = localStorage.getItem("authToken");
     const response = await fetch("/api/auth/getUser", {
       method: "GET",
       credentials: "include", // ✅ Include cookies in request
-      headers: {
-        Authorization: `Bearer ${authToken}`,
-      },
+
       
     });
     if (!response.ok) {
@@ -55,13 +47,8 @@ export async function fetchUser() {// this function will validate token and retu
 
 export async function updateUser(data) { // this function will call frontend server to call backend to update user data in profile page
   try {
-    const authToken = localStorage.getItem("authToken");
     const response = await fetch("/api/user/updateProfile", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${authToken}`,
-      },
       body: JSON.stringify(data),
       credentials: "include", // ✅ Ensures cookies are sent
     });
@@ -86,13 +73,10 @@ export async function uploadImage(file) { // this function specifically seperate
   formData.append("file", file);
 
   try {
-    const authToken = localStorage.getItem("authToken");
     const response = await fetch("/api/user/uploadImage", {
       method: "POST",
       body: formData,
-      headers: {
-        Authorization: `Bearer ${authToken}`,
-      },
+      credentials: "include", // ✅ Ensures cookies are sent
     });
 
     if (!response.ok) {
@@ -108,13 +92,9 @@ export async function uploadImage(file) { // this function specifically seperate
 
 export async function fetchContacts() {// this function will validate token and return user data and will be used in every page for authentication
   try {
-  const authToken = localStorage.getItem("authToken");
     const response = await fetch("/api/connections/getContacts", {
       method: "GET",
       credentials: "include", // ✅ Include cookies in request
-      headers: {
-        Authorization: `Bearer ${authToken}`,
-      },
     });
 
     if (!response.ok) {
@@ -129,13 +109,8 @@ export async function fetchContacts() {// this function will validate token and 
 
 export async function addContactRequest(friendId) { // this function used on random call page to allow users to add other user as friends
   try {
-    const authToken = localStorage.getItem("authToken");
     const response = await fetch("/api/addContact", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${authToken}`,
-      },
       body: JSON.stringify({ friendId }),
       credentials: "include", // ✅ Ensures cookies are sent
     });
@@ -157,14 +132,8 @@ export async function addContactRequest(friendId) { // this function used on ran
 
 export async function acceptContactRequest(friendId) {
   try {
-    const authToken = localStorage.getItem("authToken");
     const response = await fetch("/api/connections/acceptContact", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${authToken
-        }`
-      },
       body: JSON.stringify( {friendId} ),
       credentials: "include", // ✅ Ensures cookies are sent
     });
@@ -185,13 +154,8 @@ export async function acceptContactRequest(friendId) {
 
 export async function rejectContactRequest(friendId) {
   try {
-    const authToken = localStorage.getItem("authToken");
     const response = await fetch("/api/rejectContact", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${authToken}`,
-      },
       body: JSON.stringify({ friendId }),
       credentials: "include",
     });
@@ -212,13 +176,8 @@ export async function rejectContactRequest(friendId) {
 
 export async function insertMessage(messageText, senderId, receiverId) {
   try {
-    const authToken = localStorage.getItem("authToken");
     const response = await fetch("/api/message/addMessage", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${authToken}`,
-      },
       body: JSON.stringify({ messageText, senderId, receiverId }),
       credentials: "include",
     });
@@ -239,13 +198,9 @@ export async function insertMessage(messageText, senderId, receiverId) {
 
 export async function fetchMessages() {
   try {
-    const authToken = localStorage.getItem("authToken");
     const response = await fetch("/api/message/getMessages", {
       method: "GET",
       credentials: "include",
-      headers: {
-        Authorization: `Bearer ${authToken}`,
-      },
     });
 
     if (!response.ok) {
@@ -260,16 +215,11 @@ export async function fetchMessages() {
 
 export async function logStartCall(callerId, calleeId, callType) {
   try{
-    const authToken = localStorage.getItem("authToken");
     console.log("CallerId: ", callerId);
     console.log("CalleeId: ", calleeId);
     const response = await fetch("/api/logs/startCall", {
       method: "POST",
       credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${authToken}`,
-      },
       body: JSON.stringify({ callerId, calleeId, callType }),
     });
 
@@ -287,14 +237,9 @@ export async function logStartCall(callerId, calleeId, callType) {
 
 export async function logEndCall(callerId, calleeId) {
   try{
-    const authToken = localStorage.getItem("authToken");
     const response = await fetch("/api/logs/endCall", {
       method: "POST",
       credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${authToken}`,
-      },
       body: JSON.stringify({ callerId, calleeId }),
     });
 

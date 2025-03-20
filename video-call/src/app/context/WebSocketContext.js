@@ -45,9 +45,10 @@ export const WebSocketProvider = ({ children }) => {
     useEffect(() => {
       if (!clientId || clientId === "DefaultClient") return;
       const fetchToken = async () => {
-        if (!clientId || clientId === "DefaultClient") return;
-        const token = localStorage.getItem("authToken");
-        setAuthToken(token);
+          await fetchAuthToken().then((data) => {
+            console.log("Auth token fetched: ", data);
+            setAuthToken(data);
+          });
       };
       fetchToken();
     }, [clientId]);
@@ -118,6 +119,18 @@ export const WebSocketProvider = ({ children }) => {
       }
     }; // Close the connection when the component unmounts
   }, [clientId, authToken]);
+
+  // Detect tab close or refresh
+  useEffect(() => {
+    const handleUnload = (event) => {
+      event.preventDefault();
+      if (socketRef.current) {
+        socketRef.current.close();
+      }
+    };
+    window.addEventListener("beforeunload", handleUnload);
+    return () => window.removeEventListener("beforeunload", handleUnload);
+  }, []);
 
   // Handle incoming messages from websocket server
   const handleMessage = (message) => {

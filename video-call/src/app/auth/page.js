@@ -36,9 +36,9 @@ export default function AuthPage() {
       if (event.data && event.data.token) {
         console.log("Token received:", event.data.token);
         // Save the token to local storage or state
-        localStorage.setItem("authToken", event.data.token);
+        // localStorage.setItem("authToken", event.data.token);
         // Print the token in the console
-        console.log("Token saved:", localStorage.getItem("authToken"));
+        // console.log("Token saved:", localStorage.getItem("authToken"));
         // Redirect to the home page
         router.push("/home");
       }

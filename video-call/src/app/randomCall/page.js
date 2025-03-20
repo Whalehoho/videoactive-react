@@ -37,17 +37,46 @@ export default function ConnectionPage() {
   // STUN servers help find the public IP address of a user
   // TURN servers help relay media if direct connection fails, consumes more bandwidth, and is slower
   // We use free TURN servers from Xirsys, so calls might fail ocassionally
+  // const iceServers = {
+  //   iceServers: [
+  //     { urls: 'stun:stun.l.google.com:19302' },
+  //     { urls: 'stun:stun2.l.google.com:19302' },
+  //     {
+  //       urls: "turn:global.xirsys.net",
+  //       username: process.env.NEXT_PUBLIC_XIRSYS_USERNAME,
+  //       credential: process.env.NEXT_PUBLIC_XIRSYS_CREDENTIAL,
+  //     }
+  //   ],
+  // };
+
   const iceServers = {
     iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun2.l.google.com:19302' },
       {
-        urls: "turn:global.xirsys.net",
-        username: process.env.NEXT_PUBLIC_XIRSYS_USERNAME,
-        credential: process.env.NEXT_PUBLIC_XIRSYS_CREDENTIAL,
-      }
+        urls: process.env.NEXT_PUBLIC_STUN_SERVER,
+      },
+      {
+        urls: process.env.NEXT_PUBLIC_TURN_SERVER_UDP,
+        username: process.env.NEXT_PUBLIC_TURN_USERNAME,
+        credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL,
+      },
+      {
+        urls: process.env.NEXT_PUBLIC_TURN_SERVER_TCP,
+        username: process.env.NEXT_PUBLIC_TURN_USERNAME,
+        credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL,
+      },
+      {
+        urls: process.env.NEXT_PUBLIC_TURN_SERVER_TLS,
+        username: process.env.NEXT_PUBLIC_TURN_USERNAME,
+        credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL,
+      },
+      {
+        urls: process.env.NEXT_PUBLIC_TURNS_SERVER_TCP,
+        username: process.env.NEXT_PUBLIC_TURN_USERNAME,
+        credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL,
+      },
     ],
   };
+  
 
   useEffect(() => {
     fetchUser().then((data) => {

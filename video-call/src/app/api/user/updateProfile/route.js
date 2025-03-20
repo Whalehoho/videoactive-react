@@ -3,7 +3,10 @@ import { NextResponse } from "next/server";
 
 export async function POST(req) {
   try {
-    const authToken = req.headers.get("Authorization")?.split(" ")[1];
+    // const authToken = req.headers.get("Authorization")?.split(" ")[1];
+
+    const cookieStore = await cookies();
+    const authToken = cookieStore.get("AuthToken")?.value;
 
     console.log("Received request in Next.js API:", req.method);
     console.log("AuthToken from cookies:", authToken);

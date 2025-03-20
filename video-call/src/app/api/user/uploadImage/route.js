@@ -9,8 +9,11 @@ export async function POST(req) {
       return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
     }
 
+    // const authToken = req.headers.get("Authorization")?.split(" ")[1];
+
     // Get AuthToken from cookies
-    const authToken = req.headers.get("Authorization")?.split(" ")[1];
+    const cookieStore = await cookies();
+    const authToken = cookieStore.get("AuthToken")?.value;
 
     if (!authToken) {
       return NextResponse.json({ error: "Unauthorized: Missing AuthToken" }, { status: 401 });
