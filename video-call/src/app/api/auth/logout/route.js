@@ -20,6 +20,7 @@ export async function POST() {
 
     // Clear the authentication token from cookies
     cookieStore.delete("AuthToken");
+    console.log("AuthToken cookie deleted");
 
     return NextResponse.json({ message: "Logged out successfully" }, { status: 200 });
   } catch (error) {

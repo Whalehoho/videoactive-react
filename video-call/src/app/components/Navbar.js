@@ -11,7 +11,7 @@ export default function Navbar({ activePage, user, onLogout }) {
 
   const handleUserLogout = async () => {
     localStorage.removeItem("authToken");
-    // await handleLogout();
+    await handleLogout();
     onLogout(); // ✅ Trigger re-fetch in NavbarSwitcher
     router.push("/"); // Redirect to home after logout
   };

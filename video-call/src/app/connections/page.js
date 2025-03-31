@@ -57,34 +57,51 @@ export default function ConnectionPage() {
   //   ],
   // };
 
+  // const iceServers = {
+  //   iceServers: [
+  //     {
+  //       urls: process.env.NEXT_PUBLIC_STUN_SERVER,
+  //     },
+  //     {
+  //       urls: process.env.NEXT_PUBLIC_TURN_SERVER_UDP,
+  //       username: process.env.NEXT_PUBLIC_TURN_USERNAME,
+  //       credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL,
+  //     },
+  //     {
+  //       urls: process.env.NEXT_PUBLIC_TURN_SERVER_TCP,
+  //       username: process.env.NEXT_PUBLIC_TURN_USERNAME,
+  //       credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL,
+  //     },
+  //     {
+  //       urls: process.env.NEXT_PUBLIC_TURN_SERVER_TLS,
+  //       username: process.env.NEXT_PUBLIC_TURN_USERNAME,
+  //       credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL,
+  //     },
+  //     {
+  //       urls: process.env.NEXT_PUBLIC_TURNS_SERVER_TCP,
+  //       username: process.env.NEXT_PUBLIC_TURN_USERNAME,
+  //       credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL,
+  //     },
+  //   ],
+  // };
+  
+
   const iceServers = {
     iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
       {
-        urls: process.env.NEXT_PUBLIC_STUN_SERVER,
+        urls: process.env.NEXT_PUBLIC_TURN_SERVER_CUSTOM_UDP,
+        username: process.env.NEXT_PUBLIC_TURN_CUSTOM_USERNAME,
+        credential: process.env.NEXT_PUBLIC_TURN_CUSTOM_CREDENTIAL,
       },
       {
-        urls: process.env.NEXT_PUBLIC_TURN_SERVER_UDP,
-        username: process.env.NEXT_PUBLIC_TURN_USERNAME,
-        credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL,
-      },
-      {
-        urls: process.env.NEXT_PUBLIC_TURN_SERVER_TCP,
-        username: process.env.NEXT_PUBLIC_TURN_USERNAME,
-        credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL,
-      },
-      {
-        urls: process.env.NEXT_PUBLIC_TURN_SERVER_TLS,
-        username: process.env.NEXT_PUBLIC_TURN_USERNAME,
-        credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL,
-      },
-      {
-        urls: process.env.NEXT_PUBLIC_TURNS_SERVER_TCP,
-        username: process.env.NEXT_PUBLIC_TURN_USERNAME,
-        credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL,
+        urls: process.env.NEXT_PUBLIC_TURNS_SERVER_CUSTOM_TCP,
+        username: process.env.NEXT_PUBLIC_TURN_CUSTOM_USERNAME,
+        credential: process.env.NEXT_PUBLIC_TURN_CUSTOM_CREDENTIAL,
       },
     ],
   };
-  
 
   
 
