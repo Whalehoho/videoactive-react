@@ -3,7 +3,8 @@ import { cookies } from "next/headers";
 
 export async function POST() {
   try {
-    const cookieStore = cookies();
+    console.log("Logout API called");
+    const cookieStore = await cookies();
     const authToken = cookieStore.get("AuthToken")?.value;
 
     if (authToken) {
@@ -18,11 +19,21 @@ export async function POST() {
       });
     }
 
-    // Clear the authentication token from cookies
-    cookieStore.delete("AuthToken");
+    // Prepare response with cookie deletion
+    const response = NextResponse.json({ message: "Logged out successfully" });
+
+    // Delete the AuthToken cookie by setting it to expire in the past
+    response.cookies.set({
+      name: "AuthToken",
+      value: "",
+      path: "/",
+      expires: new Date(0),
+      domain: ".kc123.me",
+    });
+
     console.log("AuthToken cookie deleted");
 
-    return NextResponse.json({ message: "Logged out successfully" }, { status: 200 });
+    return response;
   } catch (error) {
     console.error("Logout error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
