@@ -28,7 +28,7 @@ export const WebSocketProvider = ({ children }) => {
   // messageHistory would be an array of objects with sender and message properties, sorted by timestamp
   // Example: [{ sender: "User1", message: "Hi", createdAt: "2022-01-01T12:00:00Z" }, ...]
 
-  
+  const pingIntervalRef = useRef(null);
 
     // Function to refresh user state
     const checkUser = useCallback(async () => {
@@ -94,6 +94,14 @@ export const WebSocketProvider = ({ children }) => {
         console.log("Connected to WebSocket server");
       };
 
+      // Periodically sending a ping message to keep the connection alive.
+      pingIntervalRef.current = setInterval(() => {
+        if (socketConnection.readyState === WebSocket.OPEN) {
+          console.log("Ping to WebSocket server");
+          socketConnection.send(JSON.stringify({ type: 'ping' }));
+        }
+      }, 30000); // 30 seconds
+
       socketConnection.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
@@ -106,6 +114,10 @@ export const WebSocketProvider = ({ children }) => {
 
       socketConnection.onclose = () => {
         console.log("Disconnected from WebSocket server");
+        if (pingIntervalRef.current) {
+          clearInterval(pingIntervalRef.current);
+          pingIntervalRef.current = null;
+        }
       };
 
       socketRef.current = socketConnection;
@@ -117,6 +129,10 @@ export const WebSocketProvider = ({ children }) => {
       if (socketRef.current) {
         socketRef.current.close();
       }
+      if (pingIntervalRef.current) {
+        clearInterval(pingIntervalRef.current);
+        pingIntervalRef.current = null;
+      }
     }; // Close the connection when the component unmounts
   }, [clientId, authToken]);
 
@@ -126,6 +142,10 @@ export const WebSocketProvider = ({ children }) => {
       event.preventDefault();
       if (socketRef.current) {
         socketRef.current.close();
+      }
+      if (pingIntervalRef.current) {
+        clearInterval(pingIntervalRef.current);
+        pingIntervalRef.current = null;
       }
     };
     window.addEventListener("beforeunload", handleUnload);

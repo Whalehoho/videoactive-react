@@ -8,6 +8,7 @@ import { ResizableBox } from 'react-resizable';
 import 'react-resizable/css/styles.css'; // Import the styles for the resizable component
 import { logStartCall, logEndCall } from "../services/api";
 
+
 export default function ConnectionPage() {
   const { 
     socketRef, 
@@ -41,6 +42,59 @@ export default function ConnectionPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
+  //these state variables for chatbox
+  const [showChatBox, setShowChatBox] = useState(true);
+  const messagesEndRef = useRef(null);
+
+  //  this useEffect to handle scrolling to the latest message
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollTop = messagesEndRef.current.scrollHeight;
+    }
+  }, [messageHistory,showChatBox ]);
+
+  // Also add this effect to show chat box when a new message arrives
+  useEffect(() => {
+    // If a new message arrives from the selected contact
+    const hasNewMessage = messageHistory.some(
+      msg => String(msg.sender) === String(targetClientId) && String(msg.receiver) === String(clientId)
+    );
+    
+    if (hasNewMessage && targetClientId) {
+      setShowChatBox(true);
+    }
+  }, [messageHistory, targetClientId]);
+  // Also modify the contact click handler to show chat when a contact is selected
+  const handleContactClick = (contactId) => {
+    setTargetClientId(contactId);
+    targetClientIdRef.current = contactId;
+    setShowChatBox(true); // Show chat box when a contact is selected
+    
+    // Add a small delay to ensure DOM is updated before scrolling
+    setTimeout(() => {
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollTop = messagesEndRef.current.scrollHeight;
+      }
+    }, 100);
+  };
+  
+
+  const iceServers = {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+      {
+        urls: process.env.NEXT_PUBLIC_TURN_SERVER_CUSTOM_UDP,
+        username: process.env.NEXT_PUBLIC_TURN_CUSTOM_USERNAME,
+        credential: process.env.NEXT_PUBLIC_TURN_CUSTOM_CREDENTIAL,
+      },
+      {
+        urls: process.env.NEXT_PUBLIC_TURNS_SERVER_CUSTOM_TCP,
+        username: process.env.NEXT_PUBLIC_TURN_CUSTOM_USERNAME,
+        credential: process.env.NEXT_PUBLIC_TURN_CUSTOM_CREDENTIAL,
+      },
+    ],
+  };
   // ICE serves help establish a connection between peers by bypassing NAT and firewalls
   // STUN servers help find the public IP address of a user
   // TURN servers help relay media if direct connection fails, consumes more bandwidth, and is slower
@@ -85,24 +139,6 @@ export default function ConnectionPage() {
   //   ],
   // };
   
-
-  const iceServers = {
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun2.l.google.com:19302' },
-      {
-        urls: process.env.NEXT_PUBLIC_TURN_SERVER_CUSTOM_UDP,
-        username: process.env.NEXT_PUBLIC_TURN_CUSTOM_USERNAME,
-        credential: process.env.NEXT_PUBLIC_TURN_CUSTOM_CREDENTIAL,
-      },
-      {
-        urls: process.env.NEXT_PUBLIC_TURNS_SERVER_CUSTOM_TCP,
-        username: process.env.NEXT_PUBLIC_TURN_CUSTOM_USERNAME,
-        credential: process.env.NEXT_PUBLIC_TURN_CUSTOM_CREDENTIAL,
-      },
-    ],
-  };
-
   
 
   useEffect(() => {
@@ -446,6 +482,8 @@ export default function ConnectionPage() {
     setMessageHistory(prevMessages => [...prevMessages, { sender: clientId, receiver: targetClientId, message: messageToSend, createdAt: createdAt }]);
     await insertMessage(messageToSend, clientId, targetClientId); // ✅ Insert message into database
     setMessageToSend("");
+    setShowChatBox(true); // Ensure chat box is open when sending a message
+
   };
 
   if (loading) {
@@ -454,6 +492,7 @@ export default function ConnectionPage() {
 
   if (!user) return null; // Prevents flickering during redirect
 
+  
   return (
     <div className="flex flex-col min-h-screen">
       <main className="flex-grow flex flex-col md:flex-row relative">
@@ -467,7 +506,7 @@ export default function ConnectionPage() {
             onChange={(e) => setSearch(e.target.value)}
             className="w-full p-2 mt-2 text-black border border-gray-300 rounded"
           />
-          <ul className="space-y-2">
+          <ul className="space-y-2 mt-3">
             {contacts
               .filter((contact) =>
                 contact?.contactName.toLowerCase().includes(search.toLowerCase())
@@ -476,26 +515,37 @@ export default function ConnectionPage() {
                 const isOnline = onlineContacts.some(
                   (online) => String(online.contactId) === String(contact.contactId)
                 );
-
+  
                 const hasIncomingCall = incomingCalls.some(
                   (call) => String(call.from) === String(contact.contactId)
                 );
-
+  
                 return (
                   <li
                     key={contact.contactId}
                     onClick={() => {
-                        setTargetClientId(contact.contactId);
-                        targetClientIdRef.current = contact.contactId;
-                      }
-                    }
-                    className={`relative p-2 rounded-lg cursor-pointer ${
-                      targetClientId === contact.contactId ? "" : ""
-                    } hover:bg-blue-400 hover:text-white`}
+                      handleContactClick(contact.contactId);
+                      targetClientIdRef.current = contact.contactId;
+                    }}
+                    className={`relative p-2 flex items-center space-x-3 rounded-lg cursor-pointer ${
+                      String(targetClientId) === String(contact.contactId) 
+                        ? 'bg-blue-500' 
+                        : 'hover:bg-blue-400 hover:text-white'
+                    }`}
                   >
-                    <span className={isOnline ? "text-green-400 font-semibold" : ""}>
+                    {/* Profile Picture */}
+                    <img
+                      src={contact.profilePic || 'https://my-video-active-bucket.s3.amazonaws.com/videoCall/profile_default.jpg'} // fallback if null
+                      alt={`${contact.contactName}'s profile`}
+                      className="w-10 h-10 rounded-full object-cover border border-gray-300"
+                    />
+  
+                    {/* Name & Online Status */}
+                    <span className={`${isOnline ? 'text-green-400 font-semibold' : ''}`}>
                       {contact.contactName}
                     </span>
+  
+                    {/* Incoming Call Ping */}
                     {hasIncomingCall && (
                       <span className="absolute top-1 right-2 w-3 h-3 bg-blue-500 rounded-full animate-ping"></span>
                     )}
@@ -506,24 +556,41 @@ export default function ConnectionPage() {
         </aside>
   
         {/* Chat Box - Resizable and Positioned Correctly */}
-        { (targetClientId) &&
-          <div className="absolute top-4 left-1/4 z-50  rounded-lg p-4 ">
+        {/* Chat Box - Auto-scrolling */}
+        {targetClientId && showChatBox && (
+          <div className="absolute top-4 left-1/4 z-50 rounded-lg p-4">
             <ResizableBox
               width={400}
               height={200}
               minConstraints={[300, 150]}
               maxConstraints={[600, 800]}
-              className="rounded-lg overflow-hidden bg-white border-2 border-gray-700"
+              className="rounded-lg overflow-hidden bg-white border-2 border-gray-700 shadow-lg"
               resizeHandles={["se"]}
             >
               <div className="flex flex-col h-full">
-                {/* Message History */}
-                <div className="flex-grow overflow-y-auto border-b-2 border-gray-500 p-2">
+                {/* Chat Header with Close Button */}
+                <div className="flex justify-between items-center bg-gray-700 text-white p-2">
+                  <span className="font-semibold">
+                    {contacts.find(contact => String(contact.contactId) === String(targetClientId))?.contactName || "Chat"}
+                  </span>
+                  <button 
+                    onClick={() => setShowChatBox(false)}
+                    className="text-white hover:text-red-300"
+                  >
+                    ❌
+                  </button>
+                </div>
+                
+                {/* Message History with ref for scrolling */}
+                <div 
+                  ref={messagesEndRef}
+                  className="flex-grow overflow-y-auto border-b-2 border-gray-200 p-2"
+                >
                   {messageHistory
                     .filter(
                       (msg) =>
-                        String(msg.sender) === String(clientId) && String(msg.receiver) === String(targetClientId) || 
-                        String(msg.sender) === String(targetClientId) && String(msg.receiver) === String(clientId)
+                        (String(msg.sender) === String(clientId) && String(msg.receiver) === String(targetClientId)) || 
+                        (String(msg.sender) === String(targetClientId) && String(msg.receiver) === String(clientId))
                     )
                     .map((msg, index) => (
                       <div
@@ -533,15 +600,15 @@ export default function ConnectionPage() {
                         } p-2`}
                       >
                         <div
-                          className={`rounded-lg px-3 py-2 max-w-xs ${
+                          className={`rounded-lg px-3 py-2 max-w-xs break-words ${
                             String(msg.sender) === String(targetClientId)
                               ? "bg-gray-200 text-black"
-                              : "bg-gray-200 text-black"
+                              : "bg-blue-500 text-white"
                           }`}
                         >
-                          <span className="font-semibold">
+                          {/* <span className="font-semibold">
                             {String(msg.sender) === String(targetClientId) ? `${msg.senderName}:` : ""}
-                          </span>{" "}
+                          </span>{" "} */}
                           {msg.message}
                         </div>
                       </div>
@@ -560,7 +627,7 @@ export default function ConnectionPage() {
                         await sendMessage();
                       }
                     }}
-                    className="flex-1 p-2 text-black border border-gray-300 rounded"
+                    className="flex-1 p-2 text-black border border-gray-300 rounded focus:ring-2 focus:ring-blue-300 focus:outline-none"
                   />
                   <button
                     onClick={sendMessage}
@@ -572,61 +639,72 @@ export default function ConnectionPage() {
               </div>
             </ResizableBox>
           </div>
-        }
+        )}
 
+        {/* Add a Chat Button when chat is closed but target is selected
+        {targetClientId && !showChatBox && (
+          <div className="absolute bottom-4 right-4 z-50">
+            <button
+              onClick={() => setShowChatBox(true)}
+              className="px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg shadow-md hover:bg-blue-600 transition flex items-center gap-2"
+            >
+              <span>Open Chat</span>
+            </button>
+          </div>
+        )} */}
   
         {/* Video Call Section */}
         <section className="flex-1 flex flex-col items-center justify-center p-10 relative">
           <h2 className="text-xl font-bold mb-4">UserName: {user?.username}</h2>
           <div className="mb-2 text-lg">
-    {targetClientId ? (
-      incomingCalls.some((call) => String(call.from) === String(targetClientId)) ? (
-        <p>
-          Answer{" "}
-          <span className="font-semibold">
-            {contacts.find((contact) => String(contact.contactId) === String(targetClientId))
-              ?.contactName}
-          </span>
-        </p>
-      ) : (
-        <p>
-          Calling:{" "}
-          <span className="font-semibold">
-            {contacts.find((contact) => String(contact.contactId) === String(targetClientId))
-              ?.contactName}
-          </span>
-        </p>
-      )
-    ) : (
-      <p className="text-gray-500">Select a contact to start a call.</p>
-    )}
-  </div>
+            {targetClientId ? (
+              incomingCalls.some((call) => String(call.from) === String(targetClientId)) ? (
+                <p>
+                  Answer{" "}
+                  <span className="font-semibold">
+                    {contacts.find((contact) => String(contact.contactId) === String(targetClientId))
+                      ?.contactName}
+                  </span>
+                </p>
+              ) : (
+                <p>
+                  Calling:{" "}
+                  <span className="font-semibold">
+                    {contacts.find((contact) => String(contact.contactId) === String(targetClientId))
+                      ?.contactName}
+                  </span>
+                </p>
+              )
+            ) : (
+              <p className="text-gray-500">Select a contact to start a call.</p>
+            )}
+          </div>
   
           {/* Call Buttons */}
           {status === "idle" && (
-    incomingCalls.some((call) => String(call.from) === String(targetClientId)) ? (
-      <button
-        onClick={answerCall}
-        className="px-6 py-3 bg-blue-500 text-white font-semibold rounded-lg shadow-md hover:bg-blue-600 transition"
-      >
-        Answer
-      </button>
-    ) : (
-      <button
-        onClick={startCall}
-        className={`px-6 py-3 font-semibold rounded-lg shadow-md transition ${
-          onlineContacts.some((online) => String(online.contactId) === String(targetClientId))
-            ? "bg-green-500 text-white hover:bg-green-600"
-            : "bg-gray-400 text-gray-700 cursor-not-allowed"
-        }`}
-        disabled={
-          !onlineContacts.some((online) => String(online.contactId) === String(targetClientId))
-        }
-      >
-        Start Call
-      </button>
-    )
-  )}
+            incomingCalls.some((call) => String(call.from) === String(targetClientId)) ? (
+              <button
+                onClick={answerCall}
+                className="px-6 py-3 bg-blue-500 text-white font-semibold rounded-lg shadow-md hover:bg-blue-600 transition"
+              >
+                Answer
+              </button>
+            ) : (
+              <button
+                onClick={startCall}
+                className={`px-6 py-3 font-semibold rounded-lg shadow-md transition ${
+                  onlineContacts.some((online) => String(online.contactId) === String(targetClientId))
+                    ? "bg-green-500 text-white hover:bg-green-600"
+                    : "bg-gray-400 text-gray-700 cursor-not-allowed"
+                }`}
+                disabled={
+                  !onlineContacts.some((online) => String(online.contactId) === String(targetClientId))
+                }
+              >
+                Start Call
+              </button>
+            )
+          )}
   
           {status === "calling" && (
             <>
@@ -636,7 +714,7 @@ export default function ConnectionPage() {
                   height={500}
                   minConstraints={[600, 300]}
                   maxConstraints={[1500, 700]}
-                  className="rounded-lg"
+                  className="rounded-lg overflow-hidden border border-gray-300 shadow-lg"
                   resizeHandles={["ne"]}
                 >
                   <video 
@@ -645,34 +723,42 @@ export default function ConnectionPage() {
                     playsInline 
                     className="relative z-10 w-full h-full object-cover" 
                   />
-                  
-      <p className="absolute z-0 inset-0 flex items-center justify-center text-lg text-gray-700">
-        Receiving media from peer...
-      </p>
+                  {/* Removed the status message from here */}
                 </ResizableBox>
               </div>
-              <button
-                onClick={hangUp}
-                className="px-6 py-3 mt-4 bg-red-500 text-white font-semibold rounded-lg shadow-md hover:bg-red-600 transition"
-              >
-                Hang Up
-              </button>
+              
+              <div className="flex flex-col items-center space-y-3 mt-4">
+                {/* Status message - Added with improved styling */}
+                <div className="animate-pulse">
+                  <p className="text-base font-medium bg-black bg-opacity-50 px-4 py-2 rounded-full backdrop-blur-sm text-white">
+                    <span className="inline-block h-2 w-2 rounded-full bg-green-400 mr-2"></span>
+                    Receiving media from peer...
+                  </p>
+                </div>
+                
+                <button
+                  onClick={hangUp}
+                  className="px-6 py-3 bg-red-500 text-white font-semibold rounded-lg shadow-md hover:bg-red-600 transition"
+                >
+                  Hang Up
+                </button>
+              </div>
             </>
           )}
   
           {/* Local Video - Positioned Absolutely */}
           {status === "calling" && (
-            <div className="absolute top-4 right-4">
+            <div className="absolute top-4 right-4 z-30">
               <ResizableBox
                 width={250}
                 height={160}
                 minConstraints={[250, 160]}
                 maxConstraints={[500, 480]}
-                className="absolute bottom-0 left-4 rounded-lg border border-black"
+                className="rounded-lg border border-black shadow-lg overflow-hidden"
                 resizeHandles={["sw"]}
               >
                 <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
-                <p className="text-center text-sm text-white bg-gray-700">local video</p>
+
               </ResizableBox>
             </div>
           )}

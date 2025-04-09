@@ -9,4 +9,3 @@ NEXT_PUBLIC_BACKEND_WEBSOCKET_URL=ws://localhost:5000
 
 From page.js we call services/api.js (which will call front end api), then all the backend api is stored in api/auth or api/user
 
-Left Connection page API

@@ -33,50 +33,12 @@ export default function ConnectionPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
+  const pingIntervalRef = useRef(null);
+
+
   // ICE serves help establish a connection between peers by bypassing NAT and firewalls
   // STUN servers help find the public IP address of a user
   // TURN servers help relay media if direct connection fails, consumes more bandwidth, and is slower
-  // We use free TURN servers from Xirsys, so calls might fail ocassionally
-  // const iceServers = {
-  //   iceServers: [
-  //     { urls: 'stun:stun.l.google.com:19302' },
-  //     { urls: 'stun:stun2.l.google.com:19302' },
-  //     {
-  //       urls: "turn:global.xirsys.net",
-  //       username: process.env.NEXT_PUBLIC_XIRSYS_USERNAME,
-  //       credential: process.env.NEXT_PUBLIC_XIRSYS_CREDENTIAL,
-  //     }
-  //   ],
-  // };
-
-  // const iceServers = {
-  //   iceServers: [
-  //     {
-  //       urls: process.env.NEXT_PUBLIC_STUN_SERVER,
-  //     },
-  //     {
-  //       urls: process.env.NEXT_PUBLIC_TURN_SERVER_UDP,
-  //       username: process.env.NEXT_PUBLIC_TURN_USERNAME,
-  //       credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL,
-  //     },
-  //     {
-  //       urls: process.env.NEXT_PUBLIC_TURN_SERVER_TCP,
-  //       username: process.env.NEXT_PUBLIC_TURN_USERNAME,
-  //       credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL,
-  //     },
-  //     {
-  //       urls: process.env.NEXT_PUBLIC_TURN_SERVER_TLS,
-  //       username: process.env.NEXT_PUBLIC_TURN_USERNAME,
-  //       credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL,
-  //     },
-  //     {
-  //       urls: process.env.NEXT_PUBLIC_TURNS_SERVER_TCP,
-  //       username: process.env.NEXT_PUBLIC_TURN_USERNAME,
-  //       credential: process.env.NEXT_PUBLIC_TURN_CREDENTIAL,
-  //     },
-  //   ],
-  // };
-  
   const iceServers = {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
@@ -127,6 +89,7 @@ export default function ConnectionPage() {
   }, []); // Empty dependency array means this runs only on mount/unmount
 
 
+
   const startCall = async () => {
     if (!authToken) {
       console.error("Auth token not available.");
@@ -145,6 +108,14 @@ export default function ConnectionPage() {
         setStatus("searching");
       };
 
+      // Periodically sending a ping message to keep the connection alive.
+      pingIntervalRef.current = setInterval(() => {
+        if (socketConnection.readyState === WebSocket.OPEN) {
+          console.log("Ping to WebSocket server");
+          socketConnection.send(JSON.stringify({ type: 'ping' }));
+        }
+      }, 30000); // 30 seconds
+
       // 3. Handle incoming messages, the first incoming message should be match-found
       socketConnection.onmessage = (event) => {
         try {
@@ -161,7 +132,10 @@ export default function ConnectionPage() {
         setContactStatus("none");
         // Reset call status
         localStorage.setItem('callStatus', 'disconnected');
-
+        if (pingIntervalRef.current) {
+          clearInterval(pingIntervalRef.current);
+          pingIntervalRef.current = null;
+        }
       };
 
       socketRef.current = socketConnection;
@@ -214,6 +188,10 @@ export default function ConnectionPage() {
       socketRef.current.onclose = null;
       socketRef.current.close();
       socketRef.current = null;
+      if (pingIntervalRef.current) {
+        clearInterval(pingIntervalRef.current);
+        pingIntervalRef.current = null;
+      }
     }
 
     // Reset call status
@@ -561,14 +539,54 @@ export default function ConnectionPage() {
   if (!user) return null; // Prevents flickering during redirect
 
   return (
-    <div className="flex flex-col h-screen p-4">
-      <div className="flex flex-row h-[80%] relative">
-        {/* Left Section */}
-        <div className="w-1/4 py-20 flex flex-col items-center space-y-12">
-          <p className="text-gray-500 text-lg">Status: {status}</p>
+    <div className="flex flex-col h-screen">
+      {/* Main Content Area - Using calc to account for footer and controls */}
+      <div className="flex-1 relative flex flex-col items-center justify-center">
+        {/* Remote Video Container - Using a container with proper constraints */}
+        <div className="w-full h-full max-h-[calc(100vh-120px)] flex items-center justify-center px-4 pt-4 pb-24">
+          <div className="w-full h-full max-w-5xl rounded-lg border border-white relative overflow-hidden">
+            <video
+              ref={remoteVideoRef}
+              autoPlay
+              playsInline
+              className="w-full h-full object-cover rounded-lg"
+            />
+            {/* Removed the status message from here */}
+          </div>
+        </div>
+  
+        {/* Local Video (Top Right Corner) - With better positioning for mobile */}
+        <div className="absolute top-6 right-6 z-30 sm:top-8 sm:right-8">
+          <ResizableBox
+            width={200}
+            height={120}
+            minConstraints={[120, 80]}
+            maxConstraints={[300, 200]}
+            className="rounded-lg border border-black shadow-lg"
+            resizeHandles={["sw"]}
+          >
+            <video
+              ref={localVideoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-full object-cover rounded-lg"
+            />
+          </ResizableBox>
+        </div>
+      </div>
+  
+      {/* Controls and Status Section - Using safe positioning */}
+      <div className="fixed bottom-0 left-0 right-0 flex flex-col items-center space-y-3 py-4 bg-gradient-to-t from-black to-transparent opacity-90 z-40 pb-16">
+        {status !== 'connected' && (
+          <p className="text-white text-lg font-medium">Status: {status}</p>
+        )}
+        
+        {/* Call Control Buttons */}
+        <div className="flex space-x-4">
           {status === "disconnected" && (
             <button
-              className="bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 transition"
+              className="bg-green-500 text-white px-6 py-2 rounded-full hover:bg-green-600 transition shadow-lg"
               onClick={startCall}
             >
               Start Call
@@ -577,88 +595,59 @@ export default function ConnectionPage() {
           {(status === "searching" || status === "connected") && (
             <button
               onClick={hangUp}
-              className="bg-red-500 text-white px-6 py-3 rounded-lg hover:bg-red-600  transition"
+              className="bg-red-500 text-white px-6 py-2 rounded-full hover:bg-red-600 transition shadow-lg"
             >
               Hang Up
             </button>
           )}
         </div>
-
-        {/* Right Section (Remote Video) */}
-        <div className="flex-1 flex items-end justify-center relative">
-          <div
-            className="w-full h-full flex-1 flex items-center justify-center rounded-lg border-0 border-gray-700"
-            // resizeHandles={["nw"]}
-          >
-
-            {/* Video remains positioned normally inside ResizableBox */}
-            <video
-              ref={remoteVideoRef}
-              autoPlay
-              playsInline
-              className="relative z-10 w-full h-full rounded-lg"
-            />
-                {status === "connected" && (
-                  <p className="absolute z-0 inset-0 flex items-center justify-center text-lg text-gray-700">
-                    Receiving media from peer...
-                  </p>
-                )}
-          </div>
-        </div>
-
   
-
-        {/* Local Video in Bottom Left Corner */}
-        <div className="absolute z-20 bottom-0 left-4">
-        <ResizableBox
-          width={250}
-          height={160}
-          minConstraints={[250, 160]}
-          maxConstraints={[500, 480]}
-          className="absolute bottom-0 left-4 rounded-lg border border-black"
-          resizeHandles={["ne"]}
-        >
-          <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover rounded-lg" />
-          <p className="text-center text-sm text-white bg-gray-700">local video</p>
-        </ResizableBox>
-        </div>
-      </div>
-      {/* Contact Request Section */}
-      <div className="mt-4 text-center">
+        {/* Status message - Moved below buttons with improved styling */}
         {status === "connected" && (
-          <>
+          <div className="animate-pulse mt-2">
+            <p className="text-white text-base font-medium bg-black bg-opacity-50 px-4 py-2 rounded-full backdrop-blur-sm">
+              <span className="inline-block h-2 w-2 rounded-full bg-green-400 mr-2"></span>
+              Receiving media from peer...
+            </p>
+          </div>
+        )}
+  
+        {/* Contact Request Buttons */}
+        {status === "connected" && (
+          <div className="mt-1">
             {contactStatus === "none" && (
               <button
-                className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition"
+                className="bg-blue-500 text-white px-6 py-2 rounded-full hover:bg-blue-600 transition shadow-lg"
                 onClick={sendContactRequest}
               >
                 Add to Contact
               </button>
             )}
             {contactStatus === "pending" && (
-              <button className="bg-yellow-500 text-white px-6 py-3 rounded-lg" disabled>
+              <button className="bg-yellow-500 text-white px-6 py-2 rounded-full shadow-lg" disabled>
                 Pending
               </button>
             )}
             {contactStatus === "accepted" && (
-              <button className="bg-green-500 text-white px-6 py-3 rounded-lg" disabled>
+              <button className="bg-green-500 text-white px-6 py-2 rounded-full shadow-lg" disabled>
                 Accepted
               </button>
             )}
-          </>
+          </div>
         )}
       </div>
+  
+      {/* Modal for Contact Requests */}
       {isModalOpen && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-        <Modal
-          isOpen={isModalOpen}
-          onClose={handleModalClose}
-          onConfirm={handleModalConfirm}
-          message={`You have a contact request from ${pendingFriendId}. Do you accept?`}
-        />
-      </div>
-    )}
-      
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
+          <Modal
+            isOpen={isModalOpen}
+            onClose={handleModalClose}
+            onConfirm={handleModalConfirm}
+            message={`You have a contact request from ${pendingFriendId}. Do you accept?`}
+          />
+        </div>
+      )}
     </div>
   );
 }
